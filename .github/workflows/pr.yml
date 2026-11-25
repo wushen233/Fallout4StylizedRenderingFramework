@@ -141,9 +141,30 @@ jobs:
       - name: Compile stock and feature shaders
         run: xmake test -g shaders -j 2
 
+      # Reuse the already-tested PR merge checkout; never publish a PR as a release.
       - name: Assemble package
-        if: steps.release-info.outputs.publish == 'true'
+        if: steps.release-info.outputs.publish == 'true' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         run: xmake package FO4CommunityShaders
+
+      - name: Verify candidate package and provenance
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        shell: pwsh
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          RELEASE_IDENTITY: ${{ steps.release-info.outputs.identity }}
+        run: ./scripts/verify-candidate-package.ps1
+
+      - name: Upload candidate package
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v7
+        with:
+          name: f4srf-candidate-${{ github.sha }}
+          path: |
+            build/packages/*.zip
+            build/candidate-evidence/*
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Prepare package metadata
         if: steps.release-info.outputs.publish == 'true'
