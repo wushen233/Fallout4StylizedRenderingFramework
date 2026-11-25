@@ -137,9 +137,16 @@ jobs:
           key: ${{ runner.os }}-shader-tests-${{ github.sha }}
           restore-keys: ${{ runner.os }}-shader-tests-
 
-      # Each suite already compiles on every core; cap concurrent suites at two.
-      - name: Compile stock and feature shaders
-        run: xmake test -g shaders -j 2
+      # Each suite already compiles on every core. Keep the three binaries and
+      # their tests serial; cold shader corpora can exceed ten minutes on CI.
+      - name: Compile runtime shaders
+        run: xmake test -j 1 "RuntimeShaderTests/*"
+
+      - name: Compile AE identity and AE/OG feature shaders
+        run: xmake test -j 1 "StockShaderIdentityTests/*"
+
+      - name: Compile OG identity shaders
+        run: xmake test -j 1 "StockShaderIdentityOGTests/*"
 
       # Reuse the already-tested PR merge checkout; never publish a PR as a release.
       - name: Assemble package

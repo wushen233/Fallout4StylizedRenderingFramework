@@ -460,8 +460,7 @@ local function stock_shader_identity_target(name, compiler, tests)
                     path.join(os.projectdir(), "build/ShaderStage/Shaders"),
                     path.join(os.projectdir(), "tests/data", spec.file),
                     spec.mode
-                },
-                run_timeout = 600000
+                }
             })
         end
     end)
@@ -494,8 +493,7 @@ target("RuntimeShaderTests", function()
     add_syslinks("bcrypt", "d3dcompiler", "version")
     after_build(stage_shader_compiler)
     add_tests("RuntimeShaderCompile", {
-        runargs = { path.join(os.projectdir(), "build/ShaderStage/Shaders") },
-        run_timeout = 600000
+        runargs = { path.join(os.projectdir(), "build/ShaderStage/Shaders") }
     })
 end)
 
