@@ -7,6 +7,7 @@
 #include "ImageBasedLightingSettings.h"
 #include "LODBlendingSettings.h"
 #include "LightLimitFixSettings.h"
+#include "Menu/Localization.h"
 #include "PerformanceOverlaySettings.h"
 #include "Render/TemporalRenderSettings.h"
 #include "RenderDocSettings.h"
@@ -99,6 +100,30 @@ namespace
 	{
 		std::ifstream input(a_path, std::ios::binary);
 		return { std::istreambuf_iterator<char>{ input }, {} };
+	}
+
+	void TestMenuLocalization(const std::filesystem::path& a_directory)
+	{
+		std::filesystem::create_directories(a_directory);
+		WriteFile(a_directory / "zh_CN.toml", R"(language = "简体中文"
+[strings]
+"Enabled" = "启用"
+"Empty" = ""
+"Invalid" = 42
+)");
+		WriteFile(a_directory / "broken.toml", "[strings\n");
+		WriteFile(a_directory / "en.toml", "language = 'Not English'\n[strings]\nEnabled = 'wrong'\n");
+		const auto chinese = cs::localize::Catalog::Load(a_directory, "zh_CN");
+		CHECK(chinese.ActiveCode() == "zh_CN");
+		CHECK(chinese.Languages().size() == 2);
+		CHECK(chinese.Translate("Enabled") == "启用");
+		CHECK(chinese.Translate("Missing") == "Missing");
+		CHECK(chinese.Translate("Empty") == "Empty");
+		CHECK(chinese.Translate("Invalid") == "Invalid");
+		CHECK(cs::localize::Catalog::Load(a_directory, "en").Translate("Enabled") == "Enabled");
+		CHECK(cs::localize::Catalog::Load(a_directory, "../zh_CN").ActiveCode() == "en");
+		CHECK(cs::localize::Catalog::Load(a_directory, "broken").ActiveCode() == "en");
+		CHECK(cs::localize::Catalog::Load(a_directory / "absent", "zh_CN").ActiveCode() == "en");
 	}
 
 	void TestRegistry(const Registry& a_registry)
@@ -394,6 +419,7 @@ int main()
 	try {
 		const auto registry = BuildFullRegistry();
 		TestRegistry(registry);
+		TestMenuLocalization(directory / "translations");
 		TestDocument(registry, directory / "settings.toml");
 		TestInvalidDocument(registry, directory / "invalid.toml");
 		TestExternalEdits(registry, directory / "external.toml");

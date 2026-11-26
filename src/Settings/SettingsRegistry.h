@@ -74,6 +74,15 @@ namespace cs::settings
 				Field{ "debug_view", "Selected fullscreen debug view; empty disables it.", &Menu::debugView } }
 		};
 
+		struct Localization
+		{
+			std::string language = "en";
+		};
+
+		inline constexpr Schema kLocalization{
+			std::tuple{ Field{ "language", "Community Shaders menu language; en uses the English source text. Applies at next launch.", &Localization::language, {}, ApplyTiming::kNextLaunch } }
+		};
+
 		struct Preset
 		{
 			std::string active;
@@ -132,6 +141,7 @@ namespace cs::settings
 			{ { "diagnostics" }, MakeSchemaView(core::kDiagnostics) },
 			{ { "menu" }, MakeSchemaView(core::kMenu) },
 			{ { "menu", "debug_view_previews" }, {}, true },
+			{ { "localization" }, MakeSchemaView(core::kLocalization) },
 			{ { "preset" }, MakeSchemaView(core::kPreset) }
 		};
 		for (const auto& target : engine::GetShaderInjectionTargets()) {

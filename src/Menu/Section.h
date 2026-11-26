@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Host/HostClient.h"
+#include "Menu/Localization.h"
 
 #include <DearModdingUI/UI.h>
 
@@ -29,7 +30,7 @@ namespace cs::ui
 		{
 			if (*_panel) {
 				static_cast<void>(
-					host::HostClient::Get().Client().DrawSectionHeader(a_title, a_glyph));
+					host::HostClient::Get().Client().DrawSectionHeader(localize::Text(a_title), a_glyph));
 				_open = true;
 			}
 		}
@@ -44,7 +45,7 @@ namespace cs::ui
 			// The host owns no expanded state, so the section keeps it per session.
 			auto& expanded = ExpandedStates().try_emplace(a_id, a_collapsible.expandedByDefault).first->second;
 			static_cast<void>(host::HostClient::Get().Client().DrawCollapsingSectionHeader(
-				a_id, a_title, a_glyph, expanded, a_collapsible.count));
+				a_id, localize::Text(a_title), a_glyph, expanded, a_collapsible.count));
 			_open = expanded;
 		}
 

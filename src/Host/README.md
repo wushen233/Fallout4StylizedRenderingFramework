@@ -116,3 +116,25 @@ without a connected host, they are logged instead.
 Performance hotkeys are registered disabled unless their owning feature is healthy and enabled.
 RenderDoc capture hotkeys additionally require a loaded capture API. IDs use the
 `dearmodding.cs.*` namespace, and host overrides remain authoritative after registration.
+
+## Menu localization
+
+Advanced > Language selects the Community Shaders client language independently of the game.
+The choice is persisted in `[localization].language` in the existing TOML configuration.
+Restart the game to apply it; the current host API does not expose a client locale setter or
+page/category label updates. Page IDs, settings keys, choices' values and resource names stay
+unchanged. The host's own UI chrome remains under DearModdingUI control.
+
+Translation files live in `Data/F4SE/Plugins/FO4CommunityShaders/Translations/<locale>.toml`.
+English is built in. Each catalog has a `language` display name and a `[strings]` table
+mapping English display text to UTF-8 translated text. Missing, empty or non-string entries
+fall back to the source text; malformed files are skipped. The catalog is loaded once per
+process and its strings remain valid through host callbacks. The initial Simplified Chinese
+catalog is partial: common navigation, controls, feature names and settings text are covered;
+specialized feature strings, dynamic diagnostics and changelog are not all translated yet.
+
+Use `cs::localize::Text` or `Translate` for display text, not setting IDs, resource names,
+paths, log messages or format strings. Call variadic widgets with a fixed "%s" format.
+The shared Section, SettingsLayout and SettingField helpers translate their display text
+automatically. The host owns fonts; CJK rendering requires a compatible host and available
+glyphs. No font files or renderer changes are included.

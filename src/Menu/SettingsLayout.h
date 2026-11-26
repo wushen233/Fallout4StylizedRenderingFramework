@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Menu/Localization.h"
+
 #include <DearModdingUI/Client.h>
 
 #include <utility>
@@ -26,7 +28,7 @@ namespace cs::ui
 		dmui::RowPresentation::Layout a_layout,
 		Draw&& a_draw)
 	{
-		dmui::SettingsRowScope row{ a_client, a_id, a_label, a_description, a_layout };
+		dmui::SettingsRowScope row{ a_client, a_id, localize::Text(a_label), localize::Text(a_description), a_layout };
 		if (row.Result() != DMUI_RESULT_OK)
 			return false;
 		if (row.Visible() && !a_draw(row))

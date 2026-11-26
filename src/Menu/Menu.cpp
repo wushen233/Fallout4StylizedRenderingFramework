@@ -5,6 +5,7 @@
 #include "Feature.h"
 #include "Host/HostClient.h"
 #include "Log.h"
+#include "Menu/Localization.h"
 #include "Menu/Section.h"
 #include "Menu/SettingsLayout.h"
 #include "Plugin.h"
@@ -300,18 +301,18 @@ namespace cs
 		const auto selectedId = _debugViews.SelectedView(a_feature.GetName());
 		std::vector<dmui::ChoiceOption<std::string>> options;
 		options.reserve(views.size() + 1);
-		options.push_back({ {}, "Off", "off" });
+		options.push_back({ {}, localize::Text("Off"), "off" });
 		for (const auto& view : views) {
 			options.push_back({ std::string(view.id),
-				std::string(view.label),
+				localize::Translate(view.label),
 				std::string(view.id) });
 		}
 		const auto selection = dmui::DrawChoice<std::string>(
 			"feature-debug-view",
 			std::string(selectedId),
 			std::span<const dmui::ChoiceOption<std::string>>{ options },
-			"Unavailable",
-			"Debug visualization");
+			localize::Text("Unavailable"),
+			localize::Text("Debug visualization"));
 		if (selection.changed)
 			SetDebugViewSelection(a_feature, *selection.selected);
 		DrawDebugTexture(host::HostClient::Get().Client(), a_feature);
@@ -452,14 +453,11 @@ namespace cs
 				a_client,
 				dmui::DrawStyledText(
 					a_client,
-					"Fallout 4 Community Shaders",
+					localize::Text("Fallout 4 Community Shaders"),
 					{ .fontRole = DMUI_FONT_ROLE_TITLE }),
 				"draw home title"))
 			return;
-		dmui::ui::TextWrapped(
-			"Features ship disabled; "
-			"choose which features to load in Advanced, then restart. "
-			"Use Enabled on each loaded feature's page to toggle its effect live.");
+		dmui::ui::TextWrapped("%s", localize::Text("Features ship disabled; choose which features to load in Advanced, then restart. Use Enabled on each loaded feature's page to toggle its effect live."));
 
 		DrawWhatsNew(a_client);
 		DrawCompatibility(a_client);
@@ -503,11 +501,11 @@ namespace cs
 			return;
 		const std::array faq{
 			dmui::FaqEntry{
-				"Why is nothing enabled?",
-				"Every feature ships disabled. Check it under Advanced > Load on startup, then restart." },
+				localize::Text("Why is nothing enabled?"),
+				localize::Text("Every feature ships disabled. Check it under Advanced > Load on startup, then restart.") },
 			dmui::FaqEntry{
-				"Where are settings stored?",
-				"FO4CommunityShaders.toml is created on first launch (in MO2, under Overwrite)." }
+				localize::Text("Where are settings stored?"),
+				localize::Text("FO4CommunityShaders.toml is created on first launch (in MO2, under Overwrite).") }
 		};
 		(void)CheckHostResult(
 			a_client,
@@ -575,7 +573,7 @@ namespace cs
 								a_client,
 								dmui::DrawStyledText(
 									a_client,
-									status,
+									localize::Text(status),
 									{ .tone = StatusTone(severity) }),
 								"draw feature status"))
 							return false;
@@ -627,7 +625,7 @@ namespace cs
 						if (!ui::DrawRow(a_client, "shader-ownership-error", "Configuration error", "", dmui::RowPresentation::Layout::kFullSpan, [&](auto&) -> bool { return dmui::DrawStyledText(a_client, stored.error, { .tone = dmui::TextTone::kStatusError }); }))
 							return false;
 						return ui::DrawRow(a_client, "shader-ownership-restore", "Restore default ownership", "Replaces the invalid stored table.", [&](auto&) {
-							if (dmui::ui::Button("Restore"))
+							if (dmui::ui::Button(localize::Text("Restore")))
 								SaveShaderOwnership(feature_config::DefaultShaderOwnership());
 							return true;
 						});
@@ -653,7 +651,7 @@ namespace cs
 
 					return ui::DrawRow(a_client, "open-shader-cache", "Open cache folder",
 						"Under MO2 this may be in Overwrite.", [&](auto&) {
-							if (dmui::ui::Button("Open")) {
+							if (dmui::ui::Button(localize::Text("Open"))) {
 								const auto identity = cacheRoot / shader_cache::kIdentityFileName;
 								std::error_code error;
 								if (!std::filesystem::exists(identity, error) && !error) {
@@ -670,12 +668,50 @@ namespace cs
 		}
 	}
 
+	void Menu::DrawLanguageSettings(dmui::Client& a_client)
+	{
+		const auto& catalog = localize::Get();
+		if (_requestedLanguage.empty())
+			_requestedLanguage = catalog.ActiveCode();
+
+		const ui::Section section{ "section-language", "Language" };
+		if (!section)
+			return;
+		std::vector<dmui::ChoiceOption<std::string>> options;
+		for (const auto& language : catalog.Languages())
+			options.push_back({ language.code, language.name, language.code });
+		(void)CheckHostResult(a_client, ui::DrawTable(a_client, "advanced-language", [&] {
+			return ui::DrawRow(a_client, "menu-language", "Menu language",
+				"Changes the Community Shaders interface language after restarting the game.", [&](auto&) {
+					const auto selection = dmui::DrawChoice<std::string>(
+						"menu-language-choice", _requestedLanguage,
+						std::span<const dmui::ChoiceOption<std::string>>{ options });
+					if (selection.changed && selection.selected) {
+						const auto result = feature_config::UpdateTopLevelSection(
+							"localization", toml::table{ { "language", *selection.selected } }, feature_config::SectionWrite::kMerge);
+						if (result)
+							_requestedLanguage = *selection.selected;
+						else {
+							L->warn("Failed to save menu language: {}", result.error);
+							ShowToast(localize::Text("Could not save the menu language. See log."), 4.0, DMUI_STATUS_SEVERITY_ERROR);
+						}
+					}
+					return true;
+				});
+		}),
+			"draw language settings");
+		if (_requestedLanguage != catalog.ActiveCode())
+			(void)DrawRestartRequired(a_client, "draw language restart status");
+		dmui::ui::TextWrapped("%s", localize::Text("Dear Modding UI's own controls follow its language settings. Untranslated text stays in English."));
+	}
+
 	void Menu::DrawAdvanced(dmui::Client& a_client)
 	{
+		DrawLanguageSettings(a_client);
 		if (const ui::Section section{ "section-configuration", "Configuration" }; section) {
 			if (!CheckHostResult(a_client, ui::DrawTable(a_client, "advanced-configuration", [&] {
 					return ui::DrawRow(a_client, "open-configuration-folder", "Configuration file location", "", [&](auto&) {
-						if (dmui::ui::Button("Open")) {
+						if (dmui::ui::Button(localize::Text("Open"))) {
 							OpenFileLocation(a_client, feature_config::kConfigPath);
 						}
 						return true;
@@ -686,8 +722,7 @@ namespace cs
 		}
 
 		if (const ui::Section section{ "section-load-on-startup", "Load on startup" }; section) {
-			dmui::ui::TextWrapped(
-				"Changes require a restart.");
+			dmui::ui::TextWrapped("%s", localize::Text("Changes require a restart."));
 			if (!CheckHostResult(a_client, ui::DrawTable(a_client, "advanced-startup-loading", [&] {
 					auto features = FeatureManager::Get().GetRegisteredFeatures();
 					std::ranges::sort(
@@ -807,7 +842,7 @@ namespace cs
 							return false;
 					}
 					return ui::DrawRow(a_client, "telemetry-dump", "Dump now", "", [&](auto&) {
-						if (dmui::ui::Button("Dump"))
+						if (dmui::ui::Button(localize::Text("Dump")))
 							telemetry::pump::RequestDump();
 						return true;
 					});
@@ -911,7 +946,7 @@ namespace cs
 			if (!ui::DrawRow(a_client, "preset-actions", "", "", dmui::RowPresentation::Layout::kFullSpan, [&](auto&) -> bool {
 		{
 			const dmui::DisabledScope disabled{ !pending };
-			if (dmui::ui::Button("Load") && pending) {
+			if (dmui::ui::Button(localize::Text("Load")) && pending) {
 				render::PostToFrame([&presets, meta = *pending] {
 					std::string error;
 					if (!presets.Apply(meta, error))
@@ -925,7 +960,7 @@ namespace cs
 		dmui::ui::SameLine();
 		{
 			const dmui::DisabledScope disabled{ !active || active->builtin };
-			if (dmui::ui::Button("Save") && active && !active->builtin) {
+			if (dmui::ui::Button(localize::Text("Save")) && active && !active->builtin) {
 				const auto identity = active->identity;
 				const auto name = active->name;
 				const auto path = active->path;
@@ -944,7 +979,7 @@ namespace cs
 		}
 
 		dmui::ui::SameLine();
-		if (dmui::ui::Button("Save As...") && !_dialog.Active()) {
+		if (dmui::ui::Button(localize::Text("Save As...")) && !_dialog.Active()) {
 			const DMUI_DialogDescriptor descriptor{
 				DMUI_DIALOG_KIND_TEXT_ENTRY,
 				"Save Preset As",
@@ -981,7 +1016,7 @@ namespace cs
 		dmui::ui::SameLine();
 		{
 			const dmui::DisabledScope disabled{ !active || active->builtin };
-			if (dmui::ui::Button("Delete") && active && !active->builtin &&
+			if (dmui::ui::Button(localize::Text("Delete")) && active && !active->builtin &&
 				!_dialog.Active()) {
 				const PresetMeta target{ active->name, active->identity, active->path, false };
 				const auto body = std::format(
@@ -1017,7 +1052,7 @@ namespace cs
 		}
 
 		dmui::ui::SameLine();
-		if (dmui::ui::Button("Refresh")) {
+		if (dmui::ui::Button(localize::Text("Refresh"))) {
 			presets.Refresh();
 			if (!presets.FindByIdentity(presets.pendingComboIdentity))
 				presets.pendingComboIdentity.clear();
@@ -1141,7 +1176,7 @@ namespace cs
 			a_client,
 			dmui::DrawStyledText(
 				a_client,
-				"Restart required",
+				localize::Text("Restart required"),
 				{ .tone = dmui::TextTone::kStatusWarning }),
 			a_operation);
 	}
