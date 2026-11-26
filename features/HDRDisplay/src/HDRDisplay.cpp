@@ -1,4 +1,5 @@
 #include "HDRDisplay.h"
+#include "Menu/Localization.h"
 
 #include <algorithm>
 #include <chrono>
@@ -231,11 +232,11 @@ namespace cs::features
 
 		if (const ui::Section section{ "hdr-display-output", "Output" }; section) {
 			if (!render::TemporalPipeline::Get().IsHdrContainerActive())
-				dmui::ui::TextDisabled("HDR output is inactive; it needs borderless windowed mode and Windows HDR on at launch.");
+				dmui::ui::TextDisabled("%s", localize::Text("HDR output is inactive; it needs borderless windowed mode and Windows HDR on at launch."));
 			else if (_displayKnown.load(std::memory_order_acquire))
-				dmui::ui::TextDisabled(_windowsHdrOn.load(std::memory_order_acquire)       ? "Windows HDR is on." :
+				dmui::ui::TextDisabled("%s", localize::Text(_windowsHdrOn.load(std::memory_order_acquire)       ? "Windows HDR is on." :
 									   _displaySupportsHdr.load(std::memory_order_acquire) ? "Windows HDR is off for this display." :
-																							 "This display does not report HDR.");
+																							 "This display does not report HDR."));
 			field(&Settings::enableHDR);
 			field(&Settings::paperWhite, { .format = "%d nits", .flags = clamped });
 			field(&Settings::peakNits, { .format = "%d nits", .flags = clamped });

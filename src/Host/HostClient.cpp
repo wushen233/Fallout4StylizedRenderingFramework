@@ -755,8 +755,8 @@ namespace cs::host
 		for (auto* feature : features.GetAll()) {
 			features.RunRuntimeCallback(*feature, "DearModdingUI::StartupNotice", [&] {
 				if (auto notice = feature->GetStartupNotice(); !notice.empty())
-					PostNotification(DMUI_STATUS_SEVERITY_WARNING, std::move(notice),
-						kStartupNoticeMilliseconds, std::string(feature->GetDisplayName()));
+					PostNotification(DMUI_STATUS_SEVERITY_WARNING, localize::Translate(notice),
+						kStartupNoticeMilliseconds, localize::Translate(feature->GetDisplayName()));
 			});
 		}
 	}

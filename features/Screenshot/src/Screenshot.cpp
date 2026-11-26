@@ -336,11 +336,11 @@ namespace cs::features
 			if (completion.error.empty()) {
 				L->info("Saved screenshot to {}", util::PathToUtf8(completion.path));
 				host::HostClient::Get().PostNotification(DMUI_STATUS_SEVERITY_SUCCESS,
-					util::PathToUtf8(completion.path.filename()), 3000, "Screenshot saved");
+					util::PathToUtf8(completion.path.filename()), 3000, localize::Text("Screenshot saved"));
 			} else {
 				L->error("Screenshot failed: {}", completion.error);
 				host::HostClient::Get().PostNotification(DMUI_STATUS_SEVERITY_ERROR,
-					completion.error + "; see the log.", 5000, "Screenshot failed");
+					localize::Message("{0}; see the log.", { completion.error }), 5000, localize::Text("Screenshot failed"));
 			}
 			_observers.Notify(completion);
 		}
@@ -353,7 +353,7 @@ namespace cs::features
 
 		if (const ui::Section section{ "screenshot-capture", "Capture" }; section) {
 			dmui::ui::TextWrapped("%s", cs::localize::Text("Print Screen captures with this feature; saving runs in the background."));
-			if (dmui::ui::Button("Take Screenshot Now"))
+			if (dmui::ui::Button(localize::WidgetLabel("Take Screenshot Now").c_str()))
 				static_cast<void>(RequestCapture());
 			field(&Settings::captureWithoutInterface);
 			field(&Settings::disableVanillaScreenshot);
@@ -375,7 +375,7 @@ namespace cs::features
 
 		if (const ui::Section section{ "screenshot-output", "Output" }; section) {
 			field(&Settings::screenshotPath);
-			if (dmui::ui::Button("Open Folder")) {
+			if (dmui::ui::Button(localize::WidgetLabel("Open Folder").c_str())) {
 				const auto folder = screenshot_file::ResolveFolder(_live.Draft().screenshotPath);
 				std::error_code ec;
 				std::filesystem::create_directories(folder, ec);

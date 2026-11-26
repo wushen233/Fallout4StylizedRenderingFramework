@@ -1030,7 +1030,7 @@ namespace cs::features
 			field(&Settings::StillCaptureInterval);
 		}
 		if (const ui::Section section{ "skylighting-rebuild", "Rebuild" }; section) {
-			if (dmui::ui::Button("Rebuild Skylighting"))
+			if (dmui::ui::Button(localize::WidgetLabel("Rebuild Skylighting").c_str()))
 				QueueReset(kResetRebuild);
 
 			ui::Tooltip(cs::localize::Text("Changes below require rebuilding, a loading screen, or moving away from the current location to apply."));

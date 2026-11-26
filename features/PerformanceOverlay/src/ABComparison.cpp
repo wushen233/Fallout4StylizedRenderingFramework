@@ -1,4 +1,5 @@
 #include "ABComparison.h"
+#include "Menu/Localization.h"
 
 #include "Log.h"
 #include "Menu/Menu.h"
@@ -379,14 +380,10 @@ namespace cs::features::performance_overlay
 			if (!feature->IsActive())
 				continue;
 			if (!feature->FollowsShaderOwnership())
-				unaffected += std::format("{}{}", unaffected.empty() ? "" : ", ", feature->GetDisplayName());
+				unaffected += std::format("{}{}", unaffected.empty() ? "" : ", ", localize::Translate(feature->GetDisplayName()));
 		}
 		const RunOptions options;
-		return std::format(
-			"Alternates custom shaders on and off in {} second windows for {} cycles. Off still includes CS hooks and per-draw lookups{}, "
-			"so it reads lower than removing the plugin.",
-			options.windowSeconds, options.cycles,
-			unaffected.empty() ? "" : std::format(", and features that do not follow shader ownership ({})", unaffected));
+		return localize::Message("Alternates custom shaders on and off in {0} second windows for {1} cycles. Off still includes CS hooks and per-draw lookups{2}, so it reads lower than removing the plugin.", { std::format("{}", options.windowSeconds), std::to_string(options.cycles), unaffected.empty() ? std::string{} : localize::Message(", and features that do not follow shader ownership ({0})", { unaffected }) });
 	}
 
 	std::expected<void, std::string> ABComparison::Try(const std::function<void()>& a_action)
@@ -409,12 +406,12 @@ namespace cs::features::performance_overlay
 
 	void ABComparison::DrawControls()
 	{
-		dmui::ui::TextWrapped("Capture USER before editing TEST. Set the interval to 0 to restore TEST.");
-		if (const auto retry = std::format("Retry {} Restoration", _labelB); _restorePending && dmui::ui::Button(retry.c_str()))
+		dmui::ui::TextWrapped("%s", localize::Text("Capture USER before editing TEST. Set the interval to 0 to restore TEST."));
+		if (const auto retry = localize::Message("Retry {0} Restoration", { _labelB }) + "###retry-restoration"; _restorePending && dmui::ui::Button(retry.c_str()))
 			Attempt([this] { SetInterval(0); });
 		{
 			const dmui::DisabledScope disabled{ _testing || _restorePending };
-			if (dmui::ui::Button("Capture USER Baseline"))
+			if (dmui::ui::Button(localize::WidgetLabel("Capture USER Baseline").c_str()))
 				CaptureBaseline();
 		}
 		const dmui::DisabledScope disabled{ ScriptedRunning() };
@@ -427,10 +424,10 @@ namespace cs::features::performance_overlay
 	{
 		{
 			const dmui::DisabledScope disabled{ _testing || _restorePending };
-			if (dmui::ui::Button("Measure CS cost"))
+			if (dmui::ui::Button(localize::WidgetLabel("Measure CS cost").c_str()))
 				Attempt([this] { StartCostRun(RunOptions{}); });
 		}
-		if (ScriptedRunning() && dmui::ui::Button("Stop Scripted Comparison"))
+		if (ScriptedRunning() && dmui::ui::Button(localize::WidgetLabel("Stop Scripted Comparison").c_str()))
 			Attempt([this] { SetInterval(0); });
 		dmui::ui::TextWrapped("%s", CostHelp().c_str());
 	}
@@ -439,10 +436,9 @@ namespace cs::features::performance_overlay
 	{
 		if (_testing) {
 			const auto progress = GetProgress();
-			dmui::ui::Text("Variant %s (%s): %.1f seconds left",
-				_variantB ? "B" : "A", (_variantB ? _labelB : _labelA).c_str(), progress.windowSecondsLeft);
+			dmui::ui::Text("%s", localize::Message("Variant {0} ({1}): {2} seconds left", { _variantB ? "B" : "A", _variantB ? _labelB : _labelA, std::format("{:.1f}", progress.windowSecondsLeft) }).c_str());
 			if (progress.scripted)
-				dmui::ui::Text("Window %d of %d", progress.window, progress.windows);
+				dmui::ui::Text("%s", localize::Message("Window {0} of {1}", { std::to_string(progress.window), std::to_string(progress.windows) }).c_str());
 		}
 		std::vector<std::string> changes;
 		for (const auto& [feature, values] : _b.live) {
@@ -471,25 +467,22 @@ namespace cs::features::performance_overlay
 				changes.push_back(std::format("ShaderOwnership.targets.{}: {} -> {}", target.name, ownershipA.targets[target.id], ownershipB.targets[target.id]));
 		}
 		if (!changes.empty()) {
-			const auto title = std::format("Changes from {}", _labelA);
+			const auto title = localize::Message("Changes from {0}", { _labelA });
 			if (const ui::Section section{ "overlay-ab-changes", title.c_str(), ui::Collapsible{ .count = changes.size(), .framed = false } }; section) {
 				for (const auto& change : changes)
 					dmui::ui::TextUnformatted(change.c_str());
 			}
 		}
 		if (!_testError.empty())
-			dmui::ui::Text("A/B error: %s", _testError.c_str());
+			dmui::ui::Text("%s", localize::Message("A/B error: {0}", { _testError }).c_str());
 		const auto summary = Summarize();
 		if (!summary)
 			return;
 		if (_scripted && summary->comparable) {
 			const auto margin = summary->deltaStdErr ? std::format(" \u00b1 {:.2f}", *summary->deltaStdErr) : std::string{};
-			dmui::ui::Text("%s minus %s: %+.2f ms%s per frame (%.2f ms / %.1f FPS %s, %.2f ms / %.1f FPS %s)",
-				_labelB.c_str(), _labelA.c_str(), summary->delta, margin.c_str(),
-				summary->meanB, summary->fpsB, _labelB.c_str(), summary->meanA, summary->fpsA, _labelA.c_str());
+			dmui::ui::Text("%s", localize::Message("{0} minus {1}: {2} ms{3} per frame ({4}, {5})", { _labelB, _labelA, std::format("{:+.2f}", summary->delta), margin, std::format("{:.2f} ms / {:.1f} FPS {}", summary->meanB, summary->fpsB, _labelB), std::format("{:.2f} ms / {:.1f} FPS {}", summary->meanA, summary->fpsA, _labelA) }).c_str());
 		}
-		dmui::ui::Text("%s: %d frames, %.1f seconds, %d excluded, %.1f%% valid", ValidityName(summary->validity).data(),
-			summary->frames, summary->duration, summary->excluded, summary->validPercent);
+		dmui::ui::Text("%s", localize::Message("{0}: {1} frames, {2} seconds, {3} excluded, {4}% valid", { ValidityName(summary->validity), std::to_string(summary->frames), std::format("{:.1f}", summary->duration), std::to_string(summary->excluded), std::format("{:.1f}", summary->validPercent) }).c_str());
 		if (_scripted)
 			return;
 		if (!dmui::ui::BeginTable("ABResults", 7, dmui::ui::TableFlags::kSortable))

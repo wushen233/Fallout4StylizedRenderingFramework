@@ -74,7 +74,7 @@ namespace cs::ui
 			if (dmui::ui::InputText(("##add" + id).c_str(), buffer, sizeof(buffer)))
 				entry = buffer;
 			dmui::ui::SameLine();
-			if (dmui::ui::Button(("Add##add" + id).c_str()) && !entry.empty()) {
+			if (dmui::ui::Button((std::string(localize::Text("Add")) + "###add" + id).c_str()) && !entry.empty()) {
 				a_value.push_back(entry);
 				entry.clear();
 				result.changed = result.completed = true;

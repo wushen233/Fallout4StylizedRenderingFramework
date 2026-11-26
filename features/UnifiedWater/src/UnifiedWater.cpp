@@ -449,7 +449,7 @@ namespace cs::features
 
 	void UnifiedWater::DrawSettings()
 	{
-		if (dmui::ui::Button("Regenerate Caches on Next Launch"))
+		if (dmui::ui::Button(localize::WidgetLabel("Regenerate Caches on Next Launch").c_str()))
 			_cache.ScheduleRegeneration();
 		dmui::ui::Text("%s", cs::localize::Text("Activation and shader ownership changes require a restart."));
 	}
@@ -469,7 +469,7 @@ namespace cs::features
 				progress.total ? 100.0f * progress.completed / progress.total : 0.0f);
 			dmui::ui::ProgressBar(progress.total ? static_cast<float>(progress.completed) / progress.total : 0.0f, {}, text.c_str());
 		} else if (progress.failed) {
-			dmui::ui::Text("ERROR: Water cache generation failed for %u WorldSpaces. Check FO4CommunityShaders.log", progress.failed);
+			dmui::ui::Text("%s", localize::Message("ERROR: Water cache generation failed for {0} WorldSpaces. Check FO4CommunityShaders.log", { std::to_string(progress.failed) }).c_str());
 		}
 	}
 

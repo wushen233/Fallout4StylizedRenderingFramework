@@ -554,11 +554,11 @@ namespace cs::features
 			dmui::ui::Text("%s", cs::localize::Text("No cloud layers are loaded."));
 			return;
 		}
-		dmui::ui::Text("%s", "Slot  Clouds.nif child | weather texture | alpha");
+		dmui::ui::Text("%s", localize::Text("Slot  Clouds.nif child | weather texture | alpha"));
 		for (const auto& row : rows) {
 			dmui::ui::TextColored(dmui::ui::Vec4{ row.color[0], row.color[1], row.color[2], 1.0f },
 				"%2u  %s | %s | %.2f%s", row.slot, row.name.c_str(), row.texture.c_str(), row.alpha,
-				row.skirt ? " (horizon skirt, not in the occlusion)" : "");
+				row.skirt ? localize::Text(" (horizon skirt, not in the occlusion)") : "");
 		}
 	}
 

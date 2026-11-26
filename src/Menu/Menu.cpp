@@ -334,10 +334,11 @@ namespace cs
 
 		const auto texture = selected->textureProvider(a_feature);
 		if (!texture.texture || texture.width == 0 || texture.height == 0) {
+			const auto translated = localize::Translate(texture.unavailableText);
 			dmui::ui::TextDisabled(
 				"%.*s",
-				static_cast<int>(texture.unavailableText.size()),
-				texture.unavailableText.data());
+				static_cast<int>(translated.size()),
+				translated.data());
 			_debugImages.erase(std::string(a_feature.GetName()));
 			return;
 		}
@@ -414,8 +415,7 @@ namespace cs
 						static_cast<const void*>(cs::engine::GetDevice()));
 					cached.loggedFailure = result;
 				}
-				dmui::ui::TextDisabled(
-					"Preview unavailable. See FO4CommunityShaders.log.");
+				dmui::ui::TextDisabled("%s", localize::Text("Preview unavailable. See FO4CommunityShaders.log."));
 				return;
 			}
 			cached.source = texture.texture;
@@ -425,8 +425,7 @@ namespace cs
 			cached.image = std::move(*imported);
 		}
 		if (cached.importFailure != ImageImportFailure::kNone) {
-			dmui::ui::TextDisabled(
-				"Preview unavailable. See FO4CommunityShaders.log.");
+			dmui::ui::TextDisabled("%s", localize::Text("Preview unavailable. See FO4CommunityShaders.log."));
 			return;
 		}
 
@@ -770,6 +769,9 @@ namespace cs
 		DrawShaderSettings(a_client);
 
 		if (const ui::Section section{ "section-logging", "Logging" }; section) {
+			auto logLevelOptions = kLogLevelOptions;
+			for (auto& option : logLevelOptions)
+				option.label = localize::Translate(option.label);
 			if (!CheckHostResult(a_client, ui::DrawTable(a_client, "advanced-logging", [&] {
 					return ui::DrawRow(a_client, "global-log-level", "Global level", "", [&](auto&) {
 						const auto selected =
@@ -778,7 +780,7 @@ namespace cs
 								log::GlobalLevel(),
 								std::span<const dmui::ChoiceOption<
 									spdlog::level::level_enum>>{
-									kLogLevelOptions });
+									logLevelOptions, }, localize::Text("Unavailable"));
 						if (selected.changed) {
 							log::SetGlobalLevel(*selected.selected);
 							(void)log::SaveConfigToToml();
@@ -812,7 +814,7 @@ namespace cs
 										current,
 										std::span<const dmui::ChoiceOption<
 											spdlog::level::level_enum>>{
-											kLogLevelOptions });
+											logLevelOptions, }, localize::Text("Unavailable"));
 								if (selected.changed) {
 									log::SetLevel(name.c_str(), *selected.selected);
 									(void)log::SaveConfigToToml();

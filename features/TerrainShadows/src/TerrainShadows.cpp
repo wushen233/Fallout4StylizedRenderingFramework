@@ -1,4 +1,5 @@
 #include "TerrainShadows.h"
+#include "Menu/Localization.h"
 #include "Render/SharedDataLayout.h"
 #include "Render/SubstrateSlots.h"
 
@@ -1110,12 +1111,7 @@ namespace cs::features
 		}
 		if (failed) {
 			auto& client = host::HostClient::Get().Client();
-			const auto warning = std::format(
-				"Warning: Heightmap unavailable for '{}': {}. Terrain shadows "
-				"are doing nothing; regenerate "
-				"the map.",
-				worldspace.empty() ? "none" : worldspace,
-				detail.empty() ? "unknown failure" : detail);
+			const auto warning = localize::Message("Warning: Heightmap unavailable for '{0}': {1}. Terrain shadows are doing nothing; regenerate the map.", { worldspace.empty() ? std::string(localize::Text("None")) : worldspace, detail.empty() ? std::string(localize::Text("unknown failure")) : detail });
 			if (!dmui::DrawStyledText(
 					client,
 					warning,

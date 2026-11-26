@@ -90,7 +90,7 @@ namespace cs::features
 			if (!client.OpenExternal({ .targetKind = a_kind, .target = utf8.c_str() }, &nativeError)) {
 				L->warn("Failed to open '{}': {} (native error {})",
 					utf8, DMUI_ResultToString(client.LastResult()), nativeError);
-				cs::Menu::ShowToast("Could not open the capture location; see log.", 4.0, DMUI_STATUS_SEVERITY_ERROR, "RenderDoc");
+				cs::Menu::ShowToast(cs::localize::Text("Could not open the capture location; see log."), 4.0, DMUI_STATUS_SEVERITY_ERROR, "RenderDoc");
 			}
 		}
 
@@ -544,7 +544,7 @@ namespace cs::features
 		if (!request) {
 			L->warn("RenderDoc capture aborted: {}", request.error().message);
 			cs::Menu::ShowToast(
-				std::format("RenderDoc capture aborted: {}", request.error().message),
+				localize::Message("RenderDoc capture aborted: {0}", { request.error().message }),
 				4.0,
 				DMUI_STATUS_SEVERITY_WARNING,
 				"RenderDoc");
@@ -679,8 +679,7 @@ namespace cs::features
 			field(&Settings::captureFolder, { .label = "Capture folder" });
 
 			field(&Settings::captureFrameCount);
-			dmui::ui::TextDisabled("Required free space: %llu MiB.",
-				renderdoc::RequiredSpaceBytes(_live.Draft().captureFrameCount) / (1024 * 1024));
+			dmui::ui::TextDisabled("%s", localize::Message("Required free space: {0} MiB.", { std::to_string(renderdoc::RequiredSpaceBytes(_live.Draft().captureFrameCount) / (1024 * 1024)) }).c_str());
 
 			// Not persisted: the text is embedded in the next capture, then cleared.
 			ui::DrawField(
@@ -697,10 +696,10 @@ namespace cs::features
 
 		if (const ui::Section section{ "renderdoc-capture", "Capture" }; section) {
 			dmui::ui::BeginDisabled(!_api || !CaptureTargetAvailable());
-			if (dmui::ui::Button("Trigger Capture"))
+			if (dmui::ui::Button(localize::WidgetLabel("Trigger Capture").c_str()))
 				TriggerCapture();
 			dmui::ui::EndDisabled();
-			dmui::ui::TextWrapped(kPerformanceWarning);
+			dmui::ui::TextWrapped("%s", localize::Text(kPerformanceWarning));
 			dmui::ui::TextWrapped("%s", cs::localize::Text("Upscaling and frame generation may be incompatible with captures."));
 
 			if (!_api)
@@ -709,29 +708,29 @@ namespace cs::features
 
 		if (const ui::Section section{ "renderdoc-captures", "Captures" }; section) {
 			try {
-				if (dmui::ui::Button("Open Capture Directory"))
+				if (dmui::ui::Button(localize::WidgetLabel("Open Capture Directory").c_str()))
 					OpenCaptureLocation(_resolvedCaptureFolder, DMUI_EXTERNAL_TARGET_DIRECTORY);
 				dmui::ui::SameLine();
-				if (dmui::ui::Button("Copy Directory Path"))
+				if (dmui::ui::Button(localize::WidgetLabel("Copy Directory Path").c_str()))
 					dmui::ui::SetClipboardText(_resolvedCaptureFolderUtf8.c_str());
-				dmui::ui::TextDisabled("Capture Directory: %s", _resolvedCaptureFolderUtf8.c_str());
+				dmui::ui::TextDisabled("%s", localize::Message("Capture Directory: {0}", { _resolvedCaptureFolderUtf8 }).c_str());
 				const auto usageMiB = _captures.DiskUsageBytes() / (1024 * 1024);
-				dmui::ui::Text("Capture Size: %.2f GiB", static_cast<double>(usageMiB) / 1024.0);
-				if (usageMiB > 0 && dmui::ui::Button("Clear All Captures"))
+				dmui::ui::Text("%s", localize::Message("Capture Size: {0} GiB", { std::format("{:.2f}", static_cast<double>(usageMiB) / 1024.0) }).c_str());
+				if (usageMiB > 0 && dmui::ui::Button(localize::WidgetLabel("Clear All Captures").c_str()))
 					Menu::Get().RequestClearRenderDocCaptures();
 				DrawCaptureFiles();
 			} catch (const std::filesystem::filesystem_error& error) {
-				dmui::ui::TextWrapped("Capture directory unavailable: %s", error.what());
+				dmui::ui::TextWrapped("%s", localize::Message("Capture directory unavailable: {0}", { error.what() }).c_str());
 			}
 		}
 	}
 
 	void RenderDoc::DrawCaptureFiles()
 	{
-		const bool refresh = dmui::ui::Button("Refresh List");
+		const bool refresh = dmui::ui::Button(localize::WidgetLabel("Refresh List").c_str());
 		auto files = _captures.Inventory(refresh);
 		dmui::ui::SameLine();
-		dmui::ui::TextDisabled("(%zu files)", files.size());
+		dmui::ui::TextDisabled("%s", localize::Message("({0} files)", { std::to_string(files.size()) }).c_str());
 		if (files.empty()) {
 			dmui::ui::TextDisabled("%s", cs::localize::Text("No capture files found."));
 			return;
@@ -744,7 +743,7 @@ namespace cs::features
 		const std::array headers{ "Filename", "Size", "Created" };
 		for (int column = 0; column < 3; ++column) {
 			(void)dmui::ui::TableSetColumnIndex(column);
-			if (dmui::ui::Button(headers[column])) {
+			if (dmui::ui::Button(localize::WidgetLabel(headers[column]).c_str())) {
 				_fileSortDescending = _fileSort == column ? !_fileSortDescending : column == 2;
 				_fileSort = column;
 			}
@@ -765,7 +764,7 @@ namespace cs::features
 				OpenCaptureLocation(file.path, DMUI_EXTERNAL_TARGET_VIRTUAL_FILE);
 			ui::Tooltip(path.c_str());
 			if (!file.deletionError.empty())
-				dmui::ui::TextWrapped("Deletion failed: %s", file.deletionError.c_str());
+				dmui::ui::TextWrapped("%s", localize::Message("Deletion failed: {0}", { file.deletionError }).c_str());
 			(void)dmui::ui::TableSetColumnIndex(1);
 			dmui::ui::Text("%.1f %s",
 				static_cast<float>(file.bytes) / (file.bytes >= 1024 * 1024 ? 1024 * 1024 : 1024),
