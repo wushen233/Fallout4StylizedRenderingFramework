@@ -698,7 +698,8 @@ namespace cs
 					}
 					return true;
 				});
-		}), "draw language settings");
+		}),
+			"draw language settings");
 		if (_requestedLanguage != catalog.ActiveCode())
 			(void)DrawRestartRequired(a_client, "draw language restart status");
 		dmui::ui::TextWrapped("%s", localize::Text("Dear Modding UI's own controls follow its language settings. Untranslated text stays in English."));
