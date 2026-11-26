@@ -70,7 +70,7 @@ namespace cs::features::cs_editor
 			dmui::ui::TextDisabled("%s", cs::localize::Text("No weather selected, or the weather has no source plugin."));
 			return;
 		}
-		dmui::ui::Text("Editing: %s", engine::DescribeWeather(a_weather).c_str());
+		dmui::ui::Text("%s", localize::Message("Editing: {0}", { engine::DescribeWeather(a_weather) }).c_str());
 		dmui::ui::TextDisabled("%s", cs::localize::Text("Overrides apply live and blend with the weather transition."));
 		if (!_error.empty()) {
 			dmui::ui::TextColored(dmui::ui::GetThemeColor(&DMUI_ThemeColors::statusError), "%s", _error.c_str());
@@ -104,7 +104,7 @@ namespace cs::features::cs_editor
 				clear = ui::DrawActionField(
 					{ id + "-clear", { .label = "Clear overrides", .help = "Removes every override for this weather." } },
 					[](const char* a_label) {
-						const bool pressed = dmui::ui::Button(std::format("Clear{}", a_label).c_str());
+						const bool pressed = dmui::ui::Button(std::format("{}{}", localize::Text("Clear"), a_label).c_str());
 						return ui::EditResult{ pressed, pressed };
 					})
 				            .changed;
@@ -125,7 +125,7 @@ namespace cs::features::cs_editor
 					active,
 					[&](const char*) {
 						toggled = dmui::ui::Checkbox(("##override-" + variable.key).c_str(), &active);
-						ui::Tooltip("Override %s for this weather", variable.key.c_str());
+						ui::Tooltip([&] { return localize::Message("Override {0} for this weather", { variable.key }); });
 						dmui::ui::SameLine();
 						const dmui::DisabledScope disabled{ !active };
 						return EditValue(variable, value);

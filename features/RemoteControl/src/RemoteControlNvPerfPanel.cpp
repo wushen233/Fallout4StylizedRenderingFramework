@@ -1,4 +1,5 @@
 #include "RemoteControl.h"
+#include "Menu/Localization.h"
 #include "RemoteControlTools.h"
 
 #include "Features/RemoteControl/NvPerf.h"
@@ -90,15 +91,14 @@ namespace cs::features::remote_control
 		{
 			switch (a_status.state) {
 			case NvPerf::CaptureState::Waiting:
-				Draw(std::format("Capture {}: waiting to start", a_status.captureId), dmui::TextTone::kStatusInfo);
+				Draw(localize::Message("Capture {0}: waiting to start", { std::to_string(a_status.captureId) }), dmui::TextTone::kStatusInfo);
 				break;
 			case NvPerf::CaptureState::Capturing:
-				Draw(std::format("Capture {}: sample {}/{}, pass {}/{}", a_status.captureId, a_status.sample + 1, a_status.samples,
-						 a_status.pass + 1, a_status.passes),
+				Draw(localize::Message("Capture {0}: sample {1}/{2}, pass {3}/{4}", { std::to_string(a_status.captureId), std::to_string(a_status.sample + 1), std::to_string(a_status.samples), std::to_string(a_status.pass + 1), std::to_string(a_status.passes) }),
 					dmui::TextTone::kStatusInfo);
 				break;
 			case NvPerf::CaptureState::Decoding:
-				Draw(std::format("Capture {}: sample {}/{}, decoding", a_status.captureId, a_status.sample + 1, a_status.samples),
+				Draw(localize::Message("Capture {0}: sample {1}/{2}, decoding", { std::to_string(a_status.captureId), std::to_string(a_status.sample + 1), std::to_string(a_status.samples) }),
 					dmui::TextTone::kStatusInfo);
 				break;
 			default:
@@ -116,10 +116,10 @@ namespace cs::features::remote_control
 					dmui::ui::Vec2{ 0.0f, height }))
 				return;
 			dmui::ui::TableSetupScrollFreeze(1, 1);
-			dmui::ui::TableSetupColumn("Range", dmui::ui::TableColumnFlags::kWidthFixed, 260.0f);
-			dmui::ui::TableSetupColumn("Per frame", dmui::ui::TableColumnFlags::kWidthFixed);
+			dmui::ui::TableSetupColumn(localize::Text("Range"), dmui::ui::TableColumnFlags::kWidthFixed, 260.0f);
+			dmui::ui::TableSetupColumn(localize::Text("Per frame"), dmui::ui::TableColumnFlags::kWidthFixed);
 			for (const auto& metric : a_result.metrics) {
-				const auto label = IsTimeMetric(metric) ? std::string("GPU time (ms)") : metric.name;
+				const auto label = IsTimeMetric(metric) ? std::string(localize::Text("GPU time (ms)")) : metric.name;
 				dmui::ui::TableSetupColumn(label.c_str(), dmui::ui::TableColumnFlags::kWidthFixed);
 			}
 			dmui::ui::TableHeadersRow();
@@ -144,19 +144,18 @@ namespace cs::features::remote_control
 		void DrawResult(const NvPerf::CaptureResult& a_result)
 		{
 			if (a_result.success)
-				Draw(std::format("Capture {}: {} ranges, frames {}-{}, {} samples x {} passes", a_result.id, a_result.rangeResults.size(),
-						 a_result.startFrame, a_result.endFrame, a_result.samples, a_result.passesPerSample),
+				Draw(localize::Message("Capture {0}: {1} ranges, frames {2}-{3}, {4} samples x {5} passes", { std::to_string(a_result.id), std::to_string(a_result.rangeResults.size()), std::to_string(a_result.startFrame), std::to_string(a_result.endFrame), std::to_string(a_result.samples), std::to_string(a_result.passesPerSample) }),
 					dmui::TextTone::kStatusSuccess);
 			else
-				Draw(std::format("Capture {} failed: {}", a_result.id, a_result.error), dmui::TextTone::kStatusError);
+				Draw(localize::Message("Capture {0} failed: {1}", { std::to_string(a_result.id), a_result.error }), dmui::TextTone::kStatusError);
 			for (const auto& metric : a_result.unsupportedMetrics)
-				Draw(std::format("Unavailable on this GPU: {}", NvPerf::FormatMetric(metric)), dmui::TextTone::kStatusWarning);
+				Draw(localize::Message("Unavailable on this GPU: {0}", { NvPerf::FormatMetric(metric) }), dmui::TextTone::kStatusWarning);
 
 			if (!a_result.summary.empty())
 				DrawSummary(a_result);
 			const auto csv = util::PathToUtf8(a_result.csvPath);
-			dmui::ui::TextDisabled("Every range of every sample: %s", csv.c_str());
-			if (dmui::ui::Button("Copy path"))
+			dmui::ui::TextDisabled("%s", localize::Message("Every range of every sample: {0}", { csv }).c_str());
+			if (dmui::ui::Button(localize::WidgetLabel("Copy path").c_str()))
 				dmui::ui::SetClipboardText(csv.c_str());
 		}
 	}
@@ -169,33 +168,27 @@ namespace cs::features::remote_control
 			return;
 
 		auto& panel = g_panel;
-		dmui::ui::TextWrapped(
-			"Measures NVIDIA GPU hardware counters (time, unit throughput, warp stalls) over the frame's perf events with the Nsight Perf SDK. "
-			"Each frame is one profiler pass; a sample takes as many frames as its metrics need passes. "
-			"Also drivable through the devbench tool communityshaders.nvperf.");
+		dmui::ui::TextWrapped("%s", localize::Text("Measures NVIDIA GPU hardware counters (time, unit throughput, warp stalls) over the frame's perf events with the Nsight Perf SDK. Each frame is one profiler pass; a sample takes as many frames as its metrics need passes. Also drivable through the devbench tool communityshaders.nvperf."));
 
 		NvPerf::Probe();
 		const auto device = NvPerf::GetDeviceInfo();
 		if (!device.built) {
-			Draw("This build was compiled without Nsight Perf. Configure with --nvperf_sdk=<SDK folder>.", dmui::TextTone::kStatusWarning);
+			Draw(localize::Text("This build was compiled without Nsight Perf. Configure with --nvperf_sdk=<SDK folder>."), dmui::TextTone::kStatusWarning);
 			return;
 		}
 		if (!device.gpuSupported) {
-			Draw(std::format("Nsight Perf is unavailable: {}", device.error), dmui::TextTone::kStatusWarning);
-			dmui::ui::TextDisabled("Library: %s", util::PathToUtf8(device.libraryPath).c_str());
+			Draw(localize::Message("Nsight Perf is unavailable: {0}", { device.error }), dmui::TextTone::kStatusWarning);
+			dmui::ui::TextDisabled("%s", localize::Message("Library: {0}", { util::PathToUtf8(device.libraryPath) }).c_str());
 			return;
 		}
-		Draw(std::format("{} (chip {})", device.deviceName, device.chipName), dmui::TextTone::kStatusSuccess);
+		Draw(localize::Message("{0} (chip {1})", { device.deviceName, device.chipName }), dmui::TextTone::kStatusSuccess);
 
 		const auto defaults = NvPerf::DefaultMetrics();
 		if (panel.defaultMetricEnabled.size() != defaults.size())
 			panel.defaultMetricEnabled.assign(defaults.size(), 1);
 
-		(void)dmui::ui::InputText("Ranges", panel.ranges.data(), panel.ranges.size());
-		dmui::ui::TextDisabled(
-			"Comma-separated perf event names; a trailing * matches every name with that prefix. "
-			"Empty measures every outermost range. Engine passes (shadow maps, BSShaderAccumulator batches) "
-			"only exist when Frame Annotations was enabled at startup.");
+		(void)dmui::ui::InputText(localize::WidgetLabel("Ranges").c_str(), panel.ranges.data(), panel.ranges.size());
+		dmui::ui::TextDisabled("%s", localize::Text("Comma-separated perf event names; a trailing * matches every name with that prefix. Empty measures every outermost range. Engine passes (shadow maps, BSShaderAccumulator batches) only exist when Frame Annotations was enabled at startup."));
 
 		if (const ui::Section metrics{ "nvperf-metrics", "Metrics", ui::Collapsible{ .count = defaults.size() } }; metrics) {
 			for (std::size_t i = 0; i < defaults.size(); ++i) {
@@ -204,27 +197,27 @@ namespace cs::features::remote_control
 				if (dmui::ui::Checkbox(label.c_str(), &enabled))
 					panel.defaultMetricEnabled[i] = enabled ? 1 : 0;
 			}
-			(void)dmui::ui::InputText("Extra metrics", panel.extraMetrics.data(), panel.extraMetrics.size());
-			dmui::ui::TextDisabled("Comma-separated name[:counter|ratio|throughput|active|elapsed|percycle].");
+			(void)dmui::ui::InputText(localize::WidgetLabel("Extra metrics").c_str(), panel.extraMetrics.data(), panel.extraMetrics.size());
+			dmui::ui::TextDisabled("%s", localize::Text("Comma-separated name[:counter|ratio|throughput|active|elapsed|percycle]."));
 		}
 
 		constexpr int kSamplesMin = 1, kSamplesMax = 16, kNestingMin = 1, kNestingMax = 4, kDelayMin = 0, kDelayMax = 600;
-		(void)dmui::ui::SliderScalar("Samples", &panel.samples, &kSamplesMin, &kSamplesMax);
-		(void)dmui::ui::SliderScalar("Nesting levels", &panel.nestingLevels, &kNestingMin, &kNestingMax);
-		dmui::ui::TextDisabled("Selected ranges nested this deep are measured too. Each level multiplies the passes.");
-		(void)dmui::ui::SliderScalar("Delay (frames)", &panel.delayFrames, &kDelayMin, &kDelayMax);
+		(void)dmui::ui::SliderScalar(localize::WidgetLabel("Samples").c_str(), &panel.samples, &kSamplesMin, &kSamplesMax);
+		(void)dmui::ui::SliderScalar(localize::WidgetLabel("Nesting levels").c_str(), &panel.nestingLevels, &kNestingMin, &kNestingMax);
+		dmui::ui::TextDisabled("%s", localize::Text("Selected ranges nested this deep are measured too. Each level multiplies the passes."));
+		(void)dmui::ui::SliderScalar(localize::WidgetLabel("Delay (frames)").c_str(), &panel.delayFrames, &kDelayMin, &kDelayMax);
 
 		const auto status = NvPerf::GetStatus();
 		const bool busy = status.state == NvPerf::CaptureState::Waiting || status.state == NvPerf::CaptureState::Capturing ||
 		                  status.state == NvPerf::CaptureState::Decoding;
 		if (busy) {
-			if (dmui::ui::Button("Cancel capture"))
+			if (dmui::ui::Button(localize::WidgetLabel("Cancel capture").c_str()))
 				NvPerf::CancelCapture();
-		} else if (dmui::ui::Button("Capture")) {
+		} else if (dmui::ui::Button(localize::WidgetLabel("Capture").c_str())) {
 			RequestCapture(defaults);
 		}
 		if (!panel.requestError.empty())
-			Draw(panel.requestError, dmui::TextTone::kError);
+			Draw(localize::Translate(panel.requestError), dmui::TextTone::kError);
 		DrawStatus(status);
 
 		if (const auto result = NvPerf::LatestResult())

@@ -1,4 +1,5 @@
 #include "CSEditor.h"
+#include "Menu/Localization.h"
 
 #include "Menu/Section.h"
 #include "World/EditorIDs.h"
@@ -47,11 +48,11 @@ namespace cs::features
 
 		auto* sky = RE::Sky::GetSingleton();
 		if (!sky) {
-			showError("Sky not available");
+			showError(localize::Text("Sky not available"));
 			return;
 		}
 		if (sky->mode.get() != RE::Sky::Mode::kFull) {
-			showError("Sky not in full mode");
+			showError(localize::Text("Sky not in full mode"));
 			return;
 		}
 		if (engine::GetAllWeathers().empty())

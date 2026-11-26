@@ -1,4 +1,5 @@
 #include "RemoteControl.h"
+#include "Menu/Localization.h"
 
 #include "RemoteControlTools.h"
 
@@ -116,20 +117,20 @@ namespace cs::features
 		};
 
 		if (!IsEnabled())
-			draw("Remote Control is disabled; every tool answers with an error.", dmui::TextTone::kStatusDisable);
+			draw(localize::Text("Remote Control is disabled; every tool answers with an error."), dmui::TextTone::kStatusDisable);
 		if (!_host.load(std::memory_order_acquire)) {
-			draw("DevBench host not detected. Install the DevBench plugin and restart; the tools register automatically.",
+			draw(localize::Text("DevBench host not detected. Install the DevBench plugin and restart; the tools register automatically."),
 				dmui::TextTone::kStatusWarning);
 			return;
 		}
 
-		draw(std::format("DevBench host present (build {})", _hostBuild), dmui::TextTone::kStatusSuccess);
+		draw(localize::Message("DevBench host present (build {0})", { std::format("{}", _hostBuild) }), dmui::TextTone::kStatusSuccess);
 		if (const auto port = ReadHostPort(); port > 0)
-			draw(std::format("Host bound on port {}", port), dmui::TextTone::kInherit);
+			draw(localize::Message("Host bound on port {0}", { std::to_string(port) }), dmui::TextTone::kInherit);
 		else
-			draw("Port unknown; DevBench writes it to %LOCALAPPDATA%\\devbench\\fo4\\runtime.json once it binds.", dmui::TextTone::kMuted);
+			draw(localize::Text("Port unknown; DevBench writes it to %LOCALAPPDATA%\\devbench\\fo4\\runtime.json once it binds."), dmui::TextTone::kMuted);
 
-		draw("Registered tools:", dmui::TextTone::kInherit);
+		draw(localize::Text("Registered tools:"), dmui::TextTone::kInherit);
 		for (const auto tool : _registeredTools) {
 			if (!client.DrawBulletText(std::string(tool).c_str()))
 				L->warn("DearModdingUI draw failed: {}", DMUI_ResultToString(client.LastResult()));

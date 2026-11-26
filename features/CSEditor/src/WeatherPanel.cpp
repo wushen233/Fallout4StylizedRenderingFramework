@@ -1,4 +1,5 @@
 #include "WeatherPanel.h"
+#include "Menu/Localization.h"
 
 #include "Feature.h"
 #include "Host/HostClient.h"
@@ -102,13 +103,13 @@ namespace cs::features::cs_editor
 		{
 			const auto flags = Flags(a_weather);
 			if ((flags & kTrackedFlags) == 0)
-				return "None";
+				return localize::Text("None");
 			std::string names;
 			for (const auto flag : kFilterOrder) {
 				if (flags & static_cast<std::uint32_t>(flag)) {
 					if (!names.empty())
 						names += ", ";
-					names += Info(flag).name;
+					names += localize::Text(Info(flag).name);
 				}
 			}
 			return names;
@@ -117,7 +118,7 @@ namespace cs::features::cs_editor
 		std::string FormatWeather(const RE::TESWeather* a_weather)
 		{
 			if (!a_weather)
-				return "None";
+				return localize::Text("None");
 			return std::format("{} [{}]", engine::DescribeWeather(a_weather), FlagNames(*a_weather));
 		}
 
@@ -127,56 +128,51 @@ namespace cs::features::cs_editor
 			return std::ranges::search(a_text, a_search, {}, lower, lower).begin() != a_text.end() || a_search.empty();
 		}
 
-		void Bullet(const char* a_format, auto... a_args)
+		void Bullet(std::string_view a_pattern, std::initializer_list<std::string_view> a_values)
 		{
-			dmui::ui::Text("- %s", std::vformat(a_format, std::make_format_args(a_args...)).c_str());
+			dmui::ui::Text("- %s", localize::Message(a_pattern, a_values).c_str());
 		}
 
 		void DisplayBasicInfo(const RE::TESWeather* a_weather, float a_pct)
 		{
 			if (!a_weather) {
-				dmui::ui::Text("- No Weather Found");
+				dmui::ui::Text("%s", localize::Text("- No Weather Found"));
 				return;
 			}
 			dmui::ui::TextColored(WeatherColor(a_weather), "- %s", FormatWeather(a_weather).c_str());
 			ui::Tooltip([&] {
 				const auto editorID = engine::GetEditorID(a_weather);
-				return std::format("Editor ID: {}\nForm ID: 0x{:08X}\nFlags: {}",
-					editorID.empty() ? "None" : std::string(editorID), a_weather->GetFormID(), FlagNames(*a_weather));
+				return localize::Message("Editor ID: {0}\nForm ID: 0x{1}\nFlags: {2}", { editorID.empty() ? localize::Text("None") : std::string(editorID), std::format("{:08X}", a_weather->GetFormID()), FlagNames(*a_weather) });
 			});
 			if (a_pct >= 0.0f)
-				Bullet("Weather Percentage: {:.1f}%", a_pct * 100.0f);
+				Bullet("Weather Percentage: {0}%", { std::format("{:.1f}", a_pct * 100.0f) });
 		}
 
 		void DisplayPrecipitationInfo(const RE::TESWeather* a_weather)
 		{
 			if (!a_weather || !a_weather->precipitationData) {
-				dmui::ui::Text("- Particle Density: No precipitation data");
+				dmui::ui::Text("%s", localize::Text("- Particle Density: No precipitation data"));
 				return;
 			}
 			// FO4: SPGD keeps Skyrim's DATA order; particle density is entry 11.
 			constexpr std::size_t kParticleDensity = 11;
 			const auto& settings = a_weather->precipitationData->data;
 			if (settings.size() > kParticleDensity)
-				Bullet("Particle Density: {:.3f}", settings[kParticleDensity].f);
+				Bullet("Particle Density: {0}", { std::format("{:.3f}", settings[kParticleDensity].f) });
 			const auto* texture = a_weather->precipitationData->particleTexture.textureName.c_str();
-			Bullet("Particle Texture: {}", texture && *texture ? texture : "None");
+			Bullet("Particle Texture: {0}", { texture && *texture ? texture : localize::Text("None") });
 			const auto begin = Raw(*a_weather, Data::kBeginPrecip);
 			const auto end = Raw(*a_weather, Data::kEndPrecip);
-			Bullet("Precip Begin Fade-In: {:.3f} (raw {})", begin / 255.0f, begin);
-			Bullet("Precip End Fade-Out: {:.3f} (raw {})", end / 255.0f, end);
-			ui::Tooltip(
-				"Precipitation fade transition parameters:\n"
-				"Begin Fade-In: Point where precipitation starts appearing\n"
-				"End Fade-Out: Point where precipitation fully disappears\n"
-				"Raw values: 0-255 (uint8), Normalized: 0.0-1.0");
+			Bullet("Precip Begin Fade-In: {0} (raw {1})", { std::format("{:.3f}", begin / 255.0f), std::to_string(begin) });
+			Bullet("Precip End Fade-Out: {0} (raw {1})", { std::format("{:.3f}", end / 255.0f), std::to_string(end) });
+			ui::Tooltip(localize::Text("Precipitation fade transition parameters:\nBegin Fade-In: Point where precipitation starts appearing\nEnd Fade-Out: Point where precipitation fully disappears\nRaw values: 0-255 (uint8), Normalized: 0.0-1.0"));
 		}
 
 		void DisplayLightningInfo(RE::TESWeather* a_weather, bool a_interactive)
 		{
 			if (!a_weather || Raw(*a_weather, Data::kThunderFreq) == 0)
 				return;
-			dmui::ui::Text("Lightning Color:");
+			dmui::ui::Text("%s", localize::Text("Lightning Color:"));
 			// The forwarding ABI has no color editor, so channels edit as 0-255 sliders.
 			constexpr std::array<std::pair<Data, const char*>, 3> channels{
 				std::pair{ Data::kLightningR, "R" }, std::pair{ Data::kLightningG, "G" }, std::pair{ Data::kLightningB, "B" }
@@ -190,21 +186,12 @@ namespace cs::features::cs_editor
 					a_weather->weatherData[static_cast<std::size_t>(index)] = static_cast<std::int8_t>(static_cast<std::uint8_t>(value));
 			}
 			dmui::ui::EndDisabled();
-			Bullet("Thunder Frequency: {}", Raw(*a_weather, Data::kThunderFreq));
-			ui::Tooltip(
-				"Thunder frequency raw value (0-255):\n\n"
-				"Known data points from Creation Kit slider:\n"
-				"- Raw 15 = ~100% frequency (highest thunder)\n"
-				"- Raw 76 = ~75% frequency\n"
-				"- Raw 203 = ~20% frequency\n"
-				"- Raw 246 = ~5% frequency\n"
-				"- Raw 255 = ~0% frequency (lowest thunder)\n\n"
-				"Range: 0-255 (unsigned 8-bit integer)\n"
-				"Note: Creation Kit interprets this value non-linearly");
+			Bullet("Thunder Frequency: {0}", { std::to_string(Raw(*a_weather, Data::kThunderFreq)) });
+			ui::Tooltip(localize::Text("Thunder frequency raw value (0-255):\n\nKnown data points from Creation Kit slider:\n- Raw 15 = ~100% frequency (highest thunder)\n- Raw 76 = ~75% frequency\n- Raw 203 = ~20% frequency\n- Raw 246 = ~5% frequency\n- Raw 255 = ~0% frequency (lowest thunder)\n\nRange: 0-255 (unsigned 8-bit integer)\nNote: Creation Kit interprets this value non-linearly"));
 			const auto begin = Raw(*a_weather, Data::kBeginThunder);
 			const auto end = Raw(*a_weather, Data::kEndThunder);
-			Bullet("Lightning Begin Fade-In: {:.3f} (raw {})", begin / 255.0f, begin);
-			Bullet("Lightning End Fade-Out: {:.3f} (raw {})", end / 255.0f, end);
+			Bullet("Lightning Begin Fade-In: {0} (raw {1})", { std::format("{:.3f}", begin / 255.0f), std::to_string(begin) });
+			Bullet("Lightning End Fade-Out: {0} (raw {1})", { std::format("{:.3f}", end / 255.0f), std::to_string(end) });
 		}
 
 		void DisplayWindInfo(const RE::TESWeather* a_weather, const RE::Sky& a_sky)
@@ -212,20 +199,20 @@ namespace cs::features::cs_editor
 			const auto speed = a_weather ? Raw(*a_weather, Data::kWindSpeed) : 0;
 			if (!a_weather || (speed == 0 && a_sky.windSpeed <= 0.0f))
 				return;
-			Bullet("Weather Wind Speed: {:.2f} (raw {})", speed / 255.0f, speed);
-			ui::Tooltip("Wind speed from weather definition");
-			Bullet("Sky Wind Speed: {:.2f}", a_sky.windSpeed);
-			ui::Tooltip("Current active wind speed from the sky system\nThis affects particle behavior and wind-based effects");
+			Bullet("Weather Wind Speed: {0} (raw {1})", { std::format("{:.2f}", speed / 255.0f), std::to_string(speed) });
+			ui::Tooltip(localize::Text("Wind speed from weather definition"));
+			Bullet("Sky Wind Speed: {0}", { std::format("{:.2f}", a_sky.windSpeed) });
+			ui::Tooltip(localize::Text("Current active wind speed from the sky system\nThis affects particle behavior and wind-based effects"));
 			const auto direction = Raw(*a_weather, Data::kWindDir);
 			const auto range = Raw(*a_weather, Data::kWindDirRange);
-			Bullet("Wind Direction: {:.1f}\xc2\xb0 (raw {})", direction * (360.0f / 256.0f), direction);
-			Bullet("Wind Direction Range: {:.1f}\xc2\xb0 (raw {})", range * (180.0f / 256.0f), range);
+			Bullet("Wind Direction: {0}° (raw {1})", { std::format("{:.1f}", direction * (360.0f / 256.0f)), std::to_string(direction) });
+			Bullet("Wind Direction Range: {0}° (raw {1})", { std::format("{:.1f}", range * (180.0f / 256.0f)), std::to_string(range) });
 			// FO4: wind-vs-player needs Skyrim's 30.5 degree offset; heading only.
 			if (const auto* player = RE::PlayerCharacter::GetSingleton()) {
 				auto heading = std::fmod(player->data.angle.z * (180.0f / std::numbers::pi_v<float>), 360.0f);
 				if (heading < 0.0f)
 					heading += 360.0f;
-				Bullet("Player Direction: {:.1f}\xc2\xb0", heading);
+				Bullet("Player Direction: {0}°", { std::format("{:.1f}", heading) });
 			}
 		}
 
@@ -254,30 +241,30 @@ namespace cs::features::cs_editor
 		if (!hour || !scale)
 			return;
 		const bool paused = engine::IsGameTimePaused();
-		if (dmui::ui::Button(paused ? "Resume Time" : "Pause Time")) {
+		if (dmui::ui::Button(localize::WidgetLabel(paused ? "Resume Time" : "Pause Time").c_str())) {
 			if (paused)
 				engine::ResumeGameTime();
 			else
 				engine::PauseGameTime();
 		}
-		ui::Tooltip("Pause or resume game time progression");
+		ui::Tooltip(localize::Text("Pause or resume game time progression"));
 		dmui::ui::SameLine();
 		float gameHour = *hour;
 		constexpr float hourMin = 0.0f, hourMax = kGameHourMax;
-		if (dmui::ui::SliderScalar("Game Time", &gameHour, &hourMin, &hourMax, "%.2f"))
+		if (dmui::ui::SliderScalar(localize::WidgetLabel("Game Time").c_str(), &gameHour, &hourMin, &hourMax, "%.2f"))
 			engine::SetGameHour(gameHour);
-		ui::Tooltip("Adjust the current game time");
+		ui::Tooltip(localize::Text("Adjust the current game time"));
 
 		// Sync slider with actual value.
 		if (paused)
 			_timeScaleSlider = std::max(*scale, kTimeScaleMin);
 		else if (std::abs(*scale - _timeScaleSlider) > 0.01f)
 			_timeScaleSlider = *scale;
-		if (dmui::ui::Button("Reset Speed")) {
+		if (dmui::ui::Button(localize::WidgetLabel("Reset Speed").c_str())) {
 			engine::ResetTimeScale();
 			_timeScaleSlider = engine::kVanillaTimeScale;
 		}
-		ui::Tooltip("Reset time speed to vanilla (%.1fx)", engine::kVanillaTimeScale);
+		ui::Tooltip([&] { return localize::Message("Reset time speed to vanilla ({0}x)", { std::format("{:.1f}", engine::kVanillaTimeScale) }); });
 		dmui::ui::SameLine();
 		dmui::ui::BeginDisabled(paused);
 		constexpr float scaleMin = kTimeScaleMin, scaleMax = kTimeScaleMax;
@@ -287,35 +274,35 @@ namespace cs::features::cs_editor
 		dmui::ui::EndDisabled();
 		dmui::ui::SameLine();
 		dmui::ui::Text("%.1fx", *scale);
-		ui::Tooltip("Adjust how fast time passes (vanilla: %.1fx)", engine::kVanillaTimeScale);
+		ui::Tooltip([&] { return localize::Message("Adjust how fast time passes (vanilla: {0}x)", { std::format("{:.1f}", engine::kVanillaTimeScale) }); });
 	}
 
 	void WeatherPanel::DrawStatus(RE::Sky& a_sky)
 	{
 		auto* current = a_sky.currentWeather;
 		if (!current) {
-			dmui::ui::TextColored(dmui::ui::GetThemeColor(&DMUI_ThemeColors::statusWarning), "No Active Weather");
+			dmui::ui::TextColored(dmui::ui::GetThemeColor(&DMUI_ThemeColors::statusWarning), "%s", localize::Text("No Active Weather"));
 			return;
 		}
 		if (HasCustomSettings(current)) {
-			dmui::ui::TextColored(dmui::ui::GetThemeColor(&DMUI_ThemeColors::statusSuccess), "Has Custom Settings");
+			dmui::ui::TextColored(dmui::ui::GetThemeColor(&DMUI_ThemeColors::statusSuccess), "%s", localize::Text("Has Custom Settings"));
 		} else {
-			dmui::ui::TextColored(dmui::ui::GetThemeColor(&DMUI_ThemeColors::statusDisable), "Using Default Settings");
+			dmui::ui::TextColored(dmui::ui::GetThemeColor(&DMUI_ThemeColors::statusDisable), "%s", localize::Text("Using Default Settings"));
 		}
-		dmui::ui::Text("Current Weather: %s", engine::DescribeWeather(current).c_str());
+		dmui::ui::Text("%s", localize::Message("Current Weather: {0}", { engine::DescribeWeather(current) }).c_str());
 
 		const float pct = std::clamp(a_sky.currentWeatherPct, 0.0f, 1.0f);
 		const bool transitioning = a_sky.lastWeather && pct < 1.0f;
 		// Always reserve space for transition info to prevent UI shifting.
 		if (transitioning)
-			dmui::ui::Text("Transitioning From: %s", engine::DescribeWeather(a_sky.lastWeather).c_str());
+			dmui::ui::Text("%s", localize::Message("Transitioning From: {0}", { engine::DescribeWeather(a_sky.lastWeather) }).c_str());
 		else
-			dmui::ui::Text("Transitioning From: No Transition");
+			dmui::ui::Text("%s", localize::Text("Transitioning From: No Transition"));
 
 		// Show background color when transition is complete.
 		if (!transitioning)
 			dmui::ui::PushStyleColor(dmui::ui::Color::kPlotHistogram, dmui::ui::GetStyleColor(dmui::ui::Color::kFrameBg));
-		const auto overlay = transitioning ? std::format("Transition: {:.1f}%", pct * 100.0f) : std::string{};
+		const auto overlay = transitioning ? localize::Message("Transition: {0}%", { std::format("{:.1f}", pct * 100.0f) }) : std::string{};
 		dmui::ui::ProgressBar(transitioning ? pct : 1.0f, { -1.0f, 0.0f }, overlay.c_str());
 		if (!transitioning)
 			dmui::ui::PopStyleColor();
@@ -337,11 +324,11 @@ namespace cs::features::cs_editor
 
 	void WeatherPanel::DrawControls(RE::Sky& a_sky)
 	{
-		dmui::ui::Text("Filter by Weather Type:");
-		if (dmui::ui::Button("Select All"))
+		dmui::ui::Text("%s", localize::Text("Filter by Weather Type:"));
+		if (dmui::ui::Button(localize::WidgetLabel("Select All").c_str()))
 			_flagFilter = kAllWeatherFlags;
 		dmui::ui::SameLine();
-		if (dmui::ui::Button("Clear All"))
+		if (dmui::ui::Button(localize::WidgetLabel("Clear All").c_str()))
 			_flagFilter = 0;
 
 		// Dynamic checkbox layout - calculate how many fit per row.
@@ -355,14 +342,11 @@ namespace cs::features::cs_editor
 			const auto color = unclassified ? dmui::ui::GetThemeColor(&DMUI_ThemeColors::statusWarning) : FlagColor(kFilterOrder[i]);
 			bool checked = (_flagFilter & bit) != 0;
 			dmui::ui::PushStyleColor(dmui::ui::Color::kText, color);
-			if (dmui::ui::Checkbox(unclassified ? "None" : Info(kFilterOrder[i]).name, &checked))
+			if (dmui::ui::Checkbox(localize::WidgetLabel(unclassified ? "None" : Info(kFilterOrder[i]).name).c_str(), &checked))
 				_flagFilter = checked ? (_flagFilter | bit) : (_flagFilter & ~bit);
 			dmui::ui::PopStyleColor();
 			if (unclassified)
-				ui::Tooltip(
-					"Shows weathers that are not classified under any specific category.\n"
-					"Includes weathers with no flags or only untracked flags.\n"
-					"Categories tracked: Pleasant, Cloudy, Rainy, Dusty, Radstorm, Radstorm Sun");
+				ui::Tooltip(localize::Text("Shows weathers that are not classified under any specific category.\nIncludes weathers with no flags or only untracked flags.\nCategories tracked: Pleasant, Cloudy, Rainy, Dusty, Radstorm, Radstorm Sun"));
 		}
 
 		// Update filtered weathers when the filter or the weather list changes.
@@ -372,20 +356,20 @@ namespace cs::features::cs_editor
 			_loadedCount = engine::GetAllWeathers().size();
 		}
 
-		static_cast<void>(dmui::ui::Checkbox("Accelerate Weather Change", &_instantChange));
-		ui::Tooltip("When enabled, weather changes instantly");
-		if (dmui::ui::Button("Reset Weather")) {
+		static_cast<void>(dmui::ui::Checkbox(localize::WidgetLabel("Accelerate Weather Change").c_str(), &_instantChange));
+		ui::Tooltip(localize::Text("When enabled, weather changes instantly"));
+		if (dmui::ui::Button(localize::WidgetLabel("Reset Weather").c_str())) {
 			engine::ResetWeather();
 			// Update the selection to reflect the reset weather without double-applying.
 			_selected = a_sky.defaultWeather;
 		}
-		ui::Tooltip("Resets weather to default");
+		ui::Tooltip(localize::Text("Resets weather to default"));
 
 		dmui::ui::SameLine();
 		const bool locked = engine::GetLockedWeather() != nullptr;
 		if (locked)
 			dmui::ui::PushStyleColor(dmui::ui::Color::kButton, dmui::ui::GetThemeColor(&DMUI_ThemeColors::statusSuccess));
-		if (dmui::ui::Button(locked ? "Unlock Weather" : "Lock Weather")) {
+		if (dmui::ui::Button(localize::WidgetLabel(locked ? "Unlock Weather" : "Lock Weather").c_str())) {
 			if (locked)
 				engine::UnlockWeather();
 			else if (a_sky.currentWeather)
@@ -394,21 +378,21 @@ namespace cs::features::cs_editor
 		if (locked)
 			dmui::ui::PopStyleColor();
 		if (!engine::AreWeatherLockHooksInstalled())
-			ui::Tooltip("Weather-lock hooks failed to install; the lock still works but weather may briefly flash before correcting");
+			ui::Tooltip(localize::Text("Weather-lock hooks failed to install; the lock still works but weather may briefly flash before correcting"));
 		else
-			ui::Tooltip(locked ? "Unlock weather to allow natural changes" : "Lock current weather to prevent changes");
+			ui::Tooltip(localize::Text(locked ? "Unlock weather to allow natural changes" : "Lock current weather to prevent changes"));
 
 		DrawWeatherCombo();
 	}
 
 	void WeatherPanel::DrawWeatherCombo()
 	{
-		const auto preview = _selected ? FormatWeather(_selected) : std::string("Select Weather");
-		if (!dmui::ui::BeginCombo("Weather", preview.c_str())) {
+		const auto preview = _selected ? FormatWeather(_selected) : std::string(localize::Text("Select Weather"));
+		if (!dmui::ui::BeginCombo(localize::WidgetLabel("Weather").c_str(), preview.c_str())) {
 			_search.clear();
 			return;
 		}
-		static_cast<void>(host::HostClient::Get().Client().DrawSearchInput("##cs-editor-weather-search", "Search", _search));
+		static_cast<void>(host::HostClient::Get().Client().DrawSearchInput("##cs-editor-weather-search", localize::Text("Search"), _search));
 		for (auto* weather : _filtered) {
 			const auto label = FormatWeather(weather);
 			// Filter by editor ID and form ID only, not classification tags.
@@ -417,7 +401,7 @@ namespace cs::features::cs_editor
 				continue;
 			const bool isSelected = weather == _selected;
 			dmui::ui::PushStyleColor(dmui::ui::Color::kText, WeatherColor(weather));
-			const bool picked = dmui::ui::Selectable(std::format("{}##{:08X}", label, weather->GetFormID()).c_str(), isSelected);
+			const bool picked = dmui::ui::Selectable(std::format("{}###weather-{:08X}", label, weather->GetFormID()).c_str(), isSelected);
 			dmui::ui::PopStyleColor();
 			if (picked) {
 				_selected = weather;
@@ -427,8 +411,7 @@ namespace cs::features::cs_editor
 			}
 			ui::Tooltip([&] {
 				const auto editorID = engine::GetEditorID(weather);
-				return std::format("Editor ID: {}\nForm ID: 0x{:08X}",
-					editorID.empty() ? "None" : std::string(editorID), weather->GetFormID());
+				return localize::Message("Editor ID: {0}\nForm ID: 0x{1}", { editorID.empty() ? localize::Text("None") : std::string(editorID), std::format("{:08X}", weather->GetFormID()) });
 			});
 			if (isSelected)
 				dmui::ui::SetItemDefaultFocus();
@@ -445,8 +428,8 @@ namespace cs::features::cs_editor
 		using dmui::ui::TableFlags;
 		if (!dmui::ui::BeginTable("cs-editor-weather-comparison", 2, TableFlags::kResizable | TableFlags::kBorders))
 			return;
-		dmui::ui::TableSetupColumn("Current Weather", dmui::ui::TableColumnFlags::kWidthStretch, 0.5f);
-		dmui::ui::TableSetupColumn("Last Weather", dmui::ui::TableColumnFlags::kWidthStretch, 0.5f);
+		dmui::ui::TableSetupColumn(localize::Text("Current Weather"), dmui::ui::TableColumnFlags::kWidthStretch, 0.5f);
+		dmui::ui::TableSetupColumn(localize::Text("Last Weather"), dmui::ui::TableColumnFlags::kWidthStretch, 0.5f);
 		dmui::ui::TableHeadersRow();
 		dmui::ui::TableNextRow();
 		static_cast<void>(dmui::ui::TableNextColumn());
