@@ -326,8 +326,7 @@ namespace cs
 		if (selected == views.end())
 			return;
 		if (selected->kind == FeatureDebugViewKind::kFullscreen) {
-			dmui::ui::TextWrapped(
-				"Close the menu to inspect it.");
+			dmui::ui::TextWrapped("%s", localize::Text("Close the menu to inspect it."));
 			return;
 		}
 		if (!selected->textureProvider)
@@ -354,7 +353,7 @@ namespace cs
 		bool querySucceeded = true;
 		if (cached.image.Handle() && !sourceChanged) {
 			if (_hostFrameSerial < cached.retryAfterFrame) {
-				dmui::ui::TextDisabled("Preview unavailable. See FO4CommunityShaders.log.");
+				dmui::ui::TextDisabled("%s", localize::Text("Preview unavailable. See FO4CommunityShaders.log."));
 				return;
 			}
 			imageInfo = a_client.QueryImage(cached.image.Handle());
@@ -906,7 +905,7 @@ namespace cs
 						return dmui::DrawStyledText(
 							a_client,
 							presets.activeName.empty() ?
-								"(none)" :
+								localize::Text("(none)") :
 								presets.activeName);
 					}))
 					return false;
@@ -933,7 +932,7 @@ namespace cs
 							presets.pendingComboIdentity,
 							std::span<const dmui::ChoiceOption<std::string>>{
 								options },
-							"(no presets found)");
+							localize::Text("(no presets found)"));
 						if (selection.changed)
 							presets.pendingComboIdentity = *selection.selected;
 						return true;
@@ -982,11 +981,11 @@ namespace cs
 		if (dmui::ui::Button(localize::Text("Save As...")) && !_dialog.Active()) {
 			const DMUI_DialogDescriptor descriptor{
 				DMUI_DIALOG_KIND_TEXT_ENTRY,
-				"Save Preset As",
-				"Enter a unique preset name using ASCII letters, digits, underscore, or hyphen.",
-				"Save",
-				"Cancel",
-				"Preset name (1-64 characters)",
+				localize::Text("Save Preset As"),
+				localize::Text("Enter a unique preset name using ASCII letters, digits, underscore, or hyphen."),
+				localize::Text("Save"),
+				localize::Text("Cancel"),
+				localize::Text("Preset name (1-64 characters)"),
 				"",
 				65u
 			};
@@ -1006,9 +1005,9 @@ namespace cs
 					manager.pendingComboIdentity = saved->identity;
 				}
 				if (!manager.SaveCoreConfig())
-					return "Preset was saved, but active preset configuration could not be persisted.";
+					return localize::Text("Preset was saved, but active preset configuration could not be persisted.");
 				manager.lastError.clear();
-				ShowToast("Preset saved", 2.5, DMUI_STATUS_SEVERITY_SUCCESS, name);
+				ShowToast(localize::Text("Preset saved"), 2.5, DMUI_STATUS_SEVERITY_SUCCESS, name);
 				return std::nullopt;
 			});
 		}
@@ -1024,10 +1023,10 @@ namespace cs
 					active->name);
 				const DMUI_DialogDescriptor descriptor{
 					DMUI_DIALOG_KIND_CONFIRM,
-					"Delete Preset",
+					localize::Text("Delete Preset"),
 					body.c_str(),
-					"Delete",
-					"Cancel",
+					localize::Text("Delete"),
+					localize::Text("Cancel"),
 					nullptr,
 					nullptr,
 					1u
@@ -1043,9 +1042,9 @@ namespace cs
 					manager.pendingComboIdentity.clear();
 					manager.autoLoadOnBoot = false;
 					if (!manager.SaveCoreConfig())
-						return "Preset was deleted, but preset configuration could not be persisted.";
+						return localize::Text("Preset was deleted, but preset configuration could not be persisted.");
 					manager.lastError.clear();
-					ShowToast("Preset deleted", 2.5, DMUI_STATUS_SEVERITY_SUCCESS, target.name);
+					ShowToast(localize::Text("Preset deleted"), 2.5, DMUI_STATUS_SEVERITY_SUCCESS, target.name);
 					return std::nullopt;
 				});
 			}

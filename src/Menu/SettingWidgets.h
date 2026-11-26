@@ -147,7 +147,11 @@ namespace cs::ui
 	std::optional<T> DrawPick(std::string_view a_id, const T& a_current,
 		std::span<const dmui::ChoiceOption<std::type_identity_t<T>>> a_options)
 	{
-		const auto pick = dmui::DrawChoice<T>(a_id, a_current, a_options);
+		// Translate only the display label; keys, values and enabled states stay intact.
+		std::vector<dmui::ChoiceOption<T>> options(a_options.begin(), a_options.end());
+		for (auto& option : options)
+			option.label = localize::Translate(option.label);
+		const auto pick = dmui::DrawChoice<T>(a_id, a_current, options, localize::Text("Unavailable"));
 		return pick.changed ? pick.selected : std::nullopt;
 	}
 
@@ -223,7 +227,7 @@ namespace cs::ui
 		using Value = typename Field::ValueType;
 		std::vector<dmui::ChoiceOption<Value>> options;
 		for (const auto& choice : a_field.choices)
-			options.push_back({ choice.value, localize::Translate(choice.text), std::string(choice.text), true });
+			options.push_back({ choice.value, std::string(choice.text), std::string(choice.text), true });
 		return EditChoice(a_field, a_settings, a_defaults, std::span<const dmui::ChoiceOption<Value>>{ options }, a_dropdown);
 	}
 }

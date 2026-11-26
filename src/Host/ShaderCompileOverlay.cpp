@@ -1,5 +1,7 @@
 #include "Host/ShaderCompileOverlay.h"
 
+#include "Menu/Localization.h"
+
 #include "Render/Engine.h"
 #include "Render/ShaderVariantCompilation.h"
 
@@ -54,11 +56,11 @@ namespace cs::host
 			fraction = batch.totalTasks ? std::min(1.0f, static_cast<float>(done) / static_cast<float>(batch.totalTasks)) : 0.0f;
 
 		if (ready) {
-			dmui::ui::TextColored(theme.success, "Shaders ready:");
+			dmui::ui::TextColored(theme.success, "%s", localize::Text("Shaders ready:"));
 			dmui::ui::TextDisabled("%u compiled, %u cache hits, %.1f s",
 				batch.CompiledTasks(), batch.cacheHits, seconds);
 		} else {
-			dmui::ui::Text("Compiling shaders:");
+			dmui::ui::Text("%s", localize::Text("Compiling shaders:"));
 			dmui::ui::TextDisabled("%u / %u, %u cache hits, %.1f s",
 				done, batch.totalTasks, batch.cacheHits, seconds);
 		}
