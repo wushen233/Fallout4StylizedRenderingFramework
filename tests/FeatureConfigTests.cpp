@@ -108,6 +108,12 @@ namespace
 		WriteFile(a_directory / "zh_CN.toml", R"(language = "简体中文"
 [strings]
 "Enabled" = "启用"
+"Value {0}: {1}" = "{1}：{0}"
+"Missing {0}" = "missing"
+"Bad {0}" = "{0:%n}"
+"Duplicate {0}" = "{0}{0}"
+"Index {0}" = "{1}"
+"Bad label" = "坏###injected"
 "Empty" = ""
 "Invalid" = 42
 )");
@@ -117,6 +123,15 @@ namespace
 		CHECK(chinese.ActiveCode() == "zh_CN");
 		CHECK(chinese.Languages().size() == 2);
 		CHECK(chinese.Translate("Enabled") == "启用");
+		CHECK(chinese.Message("Value {0}: {1}", { "A", "B" }) == "B：A");
+		CHECK(chinese.Message("Value {0}: {1}", { "{1}", "%n" }) == "%n：{1}");
+		CHECK(chinese.Message("Missing {0}", { "A" }) == "Missing A");
+		CHECK(chinese.Message("Bad {0}", { "A" }) == "Bad A");
+		CHECK(chinese.Message("Duplicate {0}", { "A" }) == "Duplicate A");
+		CHECK(chinese.Message("Index {0}", { "A" }) == "Index A");
+		CHECK(chinese.WidgetLabel("Enabled") == "启用###Enabled");
+		CHECK(chinese.WidgetLabel("Bad label") == "Bad label###Bad label");
+		CHECK(cs::localize::Catalog::Load(a_directory, "en").WidgetLabel("Enabled") == "Enabled###Enabled");
 		CHECK(chinese.Translate("Missing") == "Missing");
 		CHECK(chinese.Translate("Empty") == "Empty");
 		CHECK(chinese.Translate("Invalid") == "Invalid");

@@ -57,16 +57,16 @@ namespace cs::host
 
 		if (ready) {
 			dmui::ui::TextColored(theme.success, "%s", localize::Text("Shaders ready:"));
-			dmui::ui::TextDisabled("%u compiled, %u cache hits, %.1f s",
-				batch.CompiledTasks(), batch.cacheHits, seconds);
+			dmui::ui::TextDisabled("%s", localize::Message("{0} compiled, {1} cache hits, {2} s",
+				{ std::to_string(batch.CompiledTasks()), std::to_string(batch.cacheHits), std::format("{:.1f}", seconds) }).c_str());
 		} else {
 			dmui::ui::Text("%s", localize::Text("Compiling shaders:"));
-			dmui::ui::TextDisabled("%u / %u, %u cache hits, %.1f s",
-				done, batch.totalTasks, batch.cacheHits, seconds);
+			dmui::ui::TextDisabled("%s", localize::Message("{0} / {1}, {2} cache hits, {3} s",
+				{ std::to_string(done), std::to_string(batch.totalTasks), std::to_string(batch.cacheHits), std::format("{:.1f}", seconds) }).c_str());
 		}
 		if (batch.failedTasks) {
 			dmui::ui::SameLine();
-			dmui::ui::TextColored(theme.warning, "%u failed", batch.failedTasks);
+			dmui::ui::TextColored(theme.warning, "%s", localize::Message("{0} failed", { std::to_string(batch.failedTasks) }).c_str());
 		}
 		const auto label = std::format("{:.0f}%", fraction * 100.0f);
 		dmui::ui::PushStyleColor(dmui::ui::Color::kPlotHistogram, theme.success);

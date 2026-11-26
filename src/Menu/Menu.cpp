@@ -80,7 +80,7 @@ namespace
 				"Cannot make the folder action's file path absolute: {}",
 				error.message());
 			cs::Menu::ShowToast(
-				"Could not prepare the file location; see log.",
+				cs::localize::Text("Could not prepare the file location; see log."),
 				4.0,
 				DMUI_STATUS_SEVERITY_ERROR);
 			return;
@@ -97,7 +97,7 @@ namespace
 				"Cannot open the containing folder of '{}': {} (native error {})",
 				target, DMUI_ResultToString(result), nativeError);
 			cs::Menu::ShowToast(
-				std::format("Could not open the folder: {}. See log.", DMUI_ResultToString(result)),
+				cs::localize::Message("Could not open the folder: {0}. See log.", { DMUI_ResultToString(result) }),
 				4.0,
 				DMUI_STATUS_SEVERITY_ERROR);
 		}
@@ -624,7 +624,7 @@ namespace cs
 						if (!ui::DrawRow(a_client, "shader-ownership-error", "Configuration error", "", dmui::RowPresentation::Layout::kFullSpan, [&](auto&) -> bool { return dmui::DrawStyledText(a_client, stored.error, { .tone = dmui::TextTone::kStatusError }); }))
 							return false;
 						return ui::DrawRow(a_client, "shader-ownership-restore", "Restore default ownership", "Replaces the invalid stored table.", [&](auto&) {
-							if (dmui::ui::Button(localize::Text("Restore")))
+							if (dmui::ui::Button(localize::WidgetLabel("Restore").c_str()))
 								SaveShaderOwnership(feature_config::DefaultShaderOwnership());
 							return true;
 						});
@@ -650,11 +650,11 @@ namespace cs
 
 					return ui::DrawRow(a_client, "open-shader-cache", "Open cache folder",
 						"Under MO2 this may be in Overwrite.", [&](auto&) {
-							if (dmui::ui::Button(localize::Text("Open"))) {
+							if (dmui::ui::Button(localize::WidgetLabel("Open").c_str())) {
 								const auto identity = cacheRoot / shader_cache::kIdentityFileName;
 								std::error_code error;
 								if (!std::filesystem::exists(identity, error) && !error) {
-									ShowToast("The shader cache is not initialized. Restart to initialize it.", 4.0);
+									ShowToast(cs::localize::Text("The shader cache is not initialized. Restart to initialize it."), 4.0);
 								} else {
 									OpenFileLocation(a_client, identity);
 								}
@@ -710,7 +710,7 @@ namespace cs
 		if (const ui::Section section{ "section-configuration", "Configuration" }; section) {
 			if (!CheckHostResult(a_client, ui::DrawTable(a_client, "advanced-configuration", [&] {
 					return ui::DrawRow(a_client, "open-configuration-folder", "Configuration file location", "", [&](auto&) {
-						if (dmui::ui::Button(localize::Text("Open"))) {
+						if (dmui::ui::Button(localize::WidgetLabel("Open").c_str())) {
 							OpenFileLocation(a_client, feature_config::kConfigPath);
 						}
 						return true;
@@ -792,7 +792,7 @@ namespace cs
 			static std::string loggerSearch;
 			if (!a_client.DrawSearchInput(
 					"advanced-logger-search",
-					"Search logging channels...",
+					cs::localize::Text("Search logging channels..."),
 					loggerSearch)) {
 				CheckHostResult(a_client, false, "draw logger search");
 				return;
@@ -841,7 +841,7 @@ namespace cs
 							return false;
 					}
 					return ui::DrawRow(a_client, "telemetry-dump", "Dump now", "", [&](auto&) {
-						if (dmui::ui::Button(localize::Text("Dump")))
+						if (dmui::ui::Button(localize::WidgetLabel("Dump").c_str()))
 							telemetry::pump::RequestDump();
 						return true;
 					});
@@ -945,7 +945,7 @@ namespace cs
 			if (!ui::DrawRow(a_client, "preset-actions", "", "", dmui::RowPresentation::Layout::kFullSpan, [&](auto&) -> bool {
 		{
 			const dmui::DisabledScope disabled{ !pending };
-			if (dmui::ui::Button(localize::Text("Load")) && pending) {
+			if (dmui::ui::Button(localize::WidgetLabel("Load").c_str()) && pending) {
 				render::PostToFrame([&presets, meta = *pending] {
 					std::string error;
 					if (!presets.Apply(meta, error))
@@ -959,7 +959,7 @@ namespace cs
 		dmui::ui::SameLine();
 		{
 			const dmui::DisabledScope disabled{ !active || active->builtin };
-			if (dmui::ui::Button(localize::Text("Save")) && active && !active->builtin) {
+			if (dmui::ui::Button(localize::WidgetLabel("Save").c_str()) && active && !active->builtin) {
 				const auto identity = active->identity;
 				const auto name = active->name;
 				const auto path = active->path;
@@ -978,7 +978,7 @@ namespace cs
 		}
 
 		dmui::ui::SameLine();
-		if (dmui::ui::Button(localize::Text("Save As...")) && !_dialog.Active()) {
+		if (dmui::ui::Button(localize::WidgetLabel("Save As...").c_str()) && !_dialog.Active()) {
 			const DMUI_DialogDescriptor descriptor{
 				DMUI_DIALOG_KIND_TEXT_ENTRY,
 				localize::Text("Save Preset As"),
@@ -1015,12 +1015,10 @@ namespace cs
 		dmui::ui::SameLine();
 		{
 			const dmui::DisabledScope disabled{ !active || active->builtin };
-			if (dmui::ui::Button(localize::Text("Delete")) && active && !active->builtin &&
+			if (dmui::ui::Button(localize::WidgetLabel("Delete").c_str()) && active && !active->builtin &&
 				!_dialog.Active()) {
 				const PresetMeta target{ active->name, active->identity, active->path, false };
-				const auto body = std::format(
-					"Delete preset '{}'? File is removed from disk. This cannot be undone.",
-					active->name);
+				const auto body = localize::Message("Delete preset '{0}'? File is removed from disk. This cannot be undone.", { active->name });
 				const DMUI_DialogDescriptor descriptor{
 					DMUI_DIALOG_KIND_CONFIRM,
 					localize::Text("Delete Preset"),
@@ -1051,7 +1049,7 @@ namespace cs
 		}
 
 		dmui::ui::SameLine();
-		if (dmui::ui::Button(localize::Text("Refresh"))) {
+		if (dmui::ui::Button(localize::WidgetLabel("Refresh").c_str())) {
 			presets.Refresh();
 			if (!presets.FindByIdentity(presets.pendingComboIdentity))
 				presets.pendingComboIdentity.clear();
@@ -1082,17 +1080,17 @@ namespace cs
 		if (operation == ClearRequest::kNone)
 			return;
 		if (_dialog.Active()) {
-			ShowToast("Finish the current dialog before deleting files.", 4.0);
+			ShowToast(cs::localize::Text("Finish the current dialog before deleting files."), 4.0);
 			return;
 		}
 		const bool captures = operation == ClearRequest::kClearRenderDocCaptures;
 		const DMUI_DialogDescriptor descriptor{
 			DMUI_DIALOG_KIND_CONFIRM,
-			captures ? "Clear RenderDoc Captures" : "Clear Shader Cache",
-			captures ? "This permanently deletes every .rdc file in the configured capture directory." :
-					   "This deletes every compiled shader record on disk. Shaders are recompiled the next time they are needed.",
-			"Clear",
-			"Cancel",
+			localize::Text(captures ? "Clear RenderDoc Captures" : "Clear Shader Cache"),
+			localize::Text(captures ? "This permanently deletes every .rdc file in the configured capture directory." :
+					   "This deletes every compiled shader record on disk. Shaders are recompiled the next time they are needed."),
+			localize::Text("Clear"),
+			localize::Text("Cancel"),
 			nullptr,
 			nullptr,
 			1u
@@ -1102,7 +1100,7 @@ namespace cs
 			StartDialog(a_client, descriptor, [path](std::string_view) -> std::optional<std::string> {
 				auto* renderDoc = features::RenderDoc::GetSingleton();
 				if (path != renderDoc->CaptureDirectory())
-					return "The capture directory changed; cancel and request deletion again.";
+					return cs::localize::Text("The capture directory changed; cancel and request deletion again.");
 				renderDoc->ClearCaptures();
 				return std::nullopt;
 			});
@@ -1131,9 +1129,9 @@ namespace cs
 				try {
 					return submit(a_text);
 				} catch (const std::exception& error) {
-					return std::format("Operation failed: {}", error.what());
+					return localize::Message("Operation failed: {0}", { error.what() });
 				} catch (...) {
-					return "Operation failed with a non-standard exception.";
+					return cs::localize::Text("Operation failed with a non-standard exception.");
 				}
 			})) {
 			L->warn(
@@ -1148,14 +1146,14 @@ namespace cs
 		if (!cleared.succeeded) {
 			L->warn("Failed to clear shader cache at '{}': {}", cleared.root.string(), cleared.error);
 			ShowToast(
-				"Failed to clear the shader cache (see log)",
+				cs::localize::Text("Failed to clear the shader cache (see log)"),
 				4.0,
 				DMUI_STATUS_SEVERITY_ERROR);
-			a_error = "Failed to clear the shader cache; see the log.";
+			a_error = cs::localize::Text("Failed to clear the shader cache; see the log.");
 			return false;
 		}
 		L->info("Cleared {} shader cache entries from '{}'", cleared.removed, cleared.root.string());
-		ShowToast("Shader cache cleared", 2.5);
+		ShowToast(cs::localize::Text("Shader cache cleared"), 2.5);
 		return true;
 	}
 

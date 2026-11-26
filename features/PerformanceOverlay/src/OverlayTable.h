@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Utils/UI.h"
+#include "Menu/Localization.h"
 
 #include <DearModdingUI/Client.h>
 #include <DearModdingUI/UI.h>
@@ -24,7 +25,7 @@ namespace cs::features::performance_overlay
 			auto flags = i ? TableColumnFlags::kPreferSortDescending : TableColumnFlags::kNone;
 			if (static_cast<int>(i) == a_defaultColumn)
 				flags |= TableColumnFlags::kDefaultSort;
-			dmui::ui::TableSetupColumn(a_labels[i], flags);
+			dmui::ui::TableSetupColumn(localize::Text(a_labels[i]), flags);
 		}
 		dmui::ui::TableHeadersRow();
 		return Util::ReadTableSortSpec(a_defaultColumn, false);

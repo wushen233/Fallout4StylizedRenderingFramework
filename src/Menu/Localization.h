@@ -2,6 +2,8 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
+#include <initializer_list>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -9,12 +11,46 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <utility>
 #include <vector>
 
 #include <toml++/toml.hpp>
 
 namespace cs::localize
 {
+	// Only numbered, already formatted values are substituted. A catalog never
+	// supplies a printf format or a std::format specification.
+	[[nodiscard]] inline std::optional<std::string> ExpandMessage(std::string_view a_pattern,
+		std::initializer_list<std::string_view> a_values)
+	{
+		std::array<bool, 10> seen{};
+		if (a_values.size() > seen.size())
+			return std::nullopt;
+		std::string result;
+		for (std::size_t i = 0; i < a_pattern.size(); ++i) {
+			const auto c = a_pattern[i];
+			if (c == '{') {
+				if (a_pattern.size() - i < 3 || a_pattern[i + 1] < '0' ||
+					a_pattern[i + 1] > '9' || a_pattern[i + 2] != '}')
+					return std::nullopt;
+				const auto index = static_cast<std::size_t>(a_pattern[i + 1] - '0');
+				if (index >= a_values.size() || seen[index])
+					return std::nullopt;
+				seen[index] = true;
+				result.append(a_values.begin()[index]);
+				i += 2;
+			} else {
+				if (c == '}')
+					return std::nullopt;
+				result += c;
+			}
+		}
+		for (std::size_t i = 0; i < a_values.size(); ++i)
+			if (!seen[i])
+				return std::nullopt;
+		return result;
+	}
+
 	struct Language
 	{
 		std::string code;
@@ -93,6 +129,28 @@ namespace cs::localize
 			return translated ? *translated : std::string(a_english);
 		}
 
+		[[nodiscard]] std::string Message(std::string_view a_english,
+			std::initializer_list<std::string_view> a_values) const
+		{
+			if (const auto* translated = Find(a_english)) {
+				if (auto result = ExpandMessage(*translated, a_values))
+					return std::move(*result);
+			}
+			if (auto result = ExpandMessage(a_english, a_values))
+				return std::move(*result);
+			return std::string(a_english);
+		}
+
+		// Only for static visible labels without existing ID suffixes. Keep the
+		// identity independent of the language, including the English mode.
+		[[nodiscard]] std::string WidgetLabel(std::string_view a_english) const
+		{
+			auto visible = Translate(a_english);
+			if (visible.find("##") != std::string::npos)
+				visible = a_english;
+			return visible + "###" + std::string(a_english);
+		}
+
 	private:
 		std::vector<Language> _languages{ { "en", "English", {} } };
 		std::size_t _active{};
@@ -108,6 +166,17 @@ namespace cs::localize
 			return nullptr;
 		const auto* translated = Get().Find(a_english);
 		return translated ? translated->c_str() : a_english;
+	}
+
+	[[nodiscard]] inline std::string Message(std::string_view a_english,
+		std::initializer_list<std::string_view> a_values)
+	{
+		return Get().Message(a_english, a_values);
+	}
+
+	[[nodiscard]] inline std::string WidgetLabel(std::string_view a_english)
+	{
+		return Get().WidgetLabel(a_english);
 	}
 
 	[[nodiscard]] inline std::string Translate(std::string_view a_english)

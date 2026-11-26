@@ -1,4 +1,5 @@
 #include "ProfilingRenderer.h"
+#include "Menu/Localization.h"
 
 #include "Render/FrameProfiler.h"
 #include "Utils/PerfUtils.h"
@@ -202,8 +203,8 @@ namespace cs
 		const float scale = Util::GetUIScale();
 		// Timings sort slowest first on the first click, names A to Z.
 		constexpr auto metricFlags = TableColumnFlags::kWidthFixed | TableColumnFlags::kPreferSortDescending;
-		dmui::ui::TableSetupColumn("Pass", TableColumnFlags::kWidthStretch, 3.0f);
-		dmui::ui::TableSetupColumn("Avg", metricFlags, kTimingTableMetricColumnWidth * scale);
+		dmui::ui::TableSetupColumn(localize::Text("Pass"), TableColumnFlags::kWidthStretch, 3.0f);
+		dmui::ui::TableSetupColumn(localize::Text("Avg"), metricFlags, kTimingTableMetricColumnWidth * scale);
 		dmui::ui::TableSetupColumn("P95", metricFlags, kTimingTableMetricColumnWidth * scale);
 		dmui::ui::TableSetupColumn("P99", metricFlags, kTimingTableMetricColumnWidth * scale);
 		if (includePercentColumn)
@@ -366,7 +367,7 @@ namespace cs
 		}
 
 		if (cachedGroups.empty()) {
-			dmui::ui::TextDisabled("%s", "No timing data available (enter game world)");
+			dmui::ui::TextDisabled("%s", localize::Text("No timing data available (enter game world)"));
 			return;
 		}
 
@@ -472,7 +473,7 @@ namespace cs
 		float maxP99 = 0.0f;
 
 		if (!HasFeatureTimers(featurePrefix)) {
-			dmui::ui::TextDisabled("%s", "No timing data");
+			dmui::ui::TextDisabled("%s", localize::Text("No timing data"));
 			return;
 		}
 
@@ -513,7 +514,7 @@ namespace cs
 		}
 
 		if (entries.empty()) {
-			dmui::ui::TextDisabled("%s", "No timing data");
+			dmui::ui::TextDisabled("%s", localize::Text("No timing data"));
 			return;
 		}
 
@@ -562,7 +563,7 @@ namespace cs
 			dmui::ui::TableNextRow();
 			(void)dmui::ui::TableNextColumn();
 			const auto totalColor = dmui::ui::GetThemeColors().info;
-			dmui::ui::TextColored(totalColor, "%s", "Total");
+			dmui::ui::TextColored(totalColor, "%s", localize::Text("Total"));
 			(void)dmui::ui::TableNextColumn();
 			dmui::ui::TextColored(totalColor, "%.3f", totalAvg);
 			(void)dmui::ui::TableNextColumn();

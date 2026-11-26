@@ -1,4 +1,5 @@
 #include "PerformanceOverlay.h"
+#include "Menu/Localization.h"
 
 #include "Host/HostClient.h"
 #include "Log.h"
@@ -359,7 +360,7 @@ namespace cs::features
 				.referenceLines = references.data(),
 				.referenceLineCount = static_cast<std::uint32_t>(references.size()) });
 		dmui::ui::PopStyleColor();
-		ui::Tooltip("Reference lines: 30 FPS = 33.3 ms, 60 FPS = 16.7 ms, 120 FPS = 8.3 ms");
+		ui::Tooltip(localize::Text("Reference lines: 30 FPS = 33.3 ms, 60 FPS = 16.7 ms, 120 FPS = 8.3 ms"));
 	}
 
 	float PerformanceOverlay::OverlayContentWidth() noexcept
@@ -411,17 +412,17 @@ namespace cs::features
 			return;
 		if (settings.ShowInOverlay) {
 			if (settings.ShowFPS) {
-				dmui::ui::Text("%s %.1f FPS (%.2f ms)", _frameGeneration ? "[Pre-FG]" : "[Engine]", _displayFps, _displayMs);
+				dmui::ui::Text("%s %.1f FPS (%.2f ms)", localize::Text(_frameGeneration ? "[Pre-FG]" : "[Engine]"), _displayFps, _displayMs);
 				if (_windowAvgMs > 0.0f)
-					dmui::ui::Text("Avg: %.1f FPS | 1%% Low: %.1f FPS", Util::CalcFPS(_windowAvgMs), Util::CalcFPS(_windowP99Ms));
+					dmui::ui::Text("%s: %.1f FPS | %s: %.1f FPS", localize::Text("Avg"), Util::CalcFPS(_windowAvgMs), localize::Text("1% Low"), Util::CalcFPS(_windowP99Ms));
 				if (settings.ShowPreFGFrameTimeGraph) {
-					const auto overlay = std::format("{}{:.2f} ms ({:.1f} FPS)", _frameGeneration ? "Pre-FG: " : "", _displayMs, _displayFps);
+					const auto overlay = std::format("{}{:.2f} ms ({:.1f} FPS)", _frameGeneration ? localize::Text("Pre-FG: ") : "", _displayMs, _displayFps);
 					DrawGraph("##frametime", overlay.c_str(), _history, &DMUI_ThemeColors::success);
 				}
 				if (_frameGeneration) {
-					dmui::ui::Text("[Post-FG calculated, 2x] %.1f FPS (%.2f ms)", _postDisplayFps, _postDisplayMs);
+					dmui::ui::Text("%s %.1f FPS (%.2f ms)", localize::Text("[Post-FG calculated, 2x]"), _postDisplayFps, _postDisplayMs);
 					if (settings.ShowPostFGFrameTimeGraph) {
-						const auto overlay = std::format("Post-FG: {:.2f} ms ({:.1f} FPS)", _postDisplayMs, _postDisplayFps);
+						const auto overlay = std::format("{}{:.2f} ms ({:.1f} FPS)", localize::Text("Post-FG: "), _postDisplayMs, _postDisplayFps);
 						DrawGraph("##postfgframetime", overlay.c_str(), _postHistory, &DMUI_ThemeColors::info);
 					}
 				}
@@ -433,7 +434,7 @@ namespace cs::features
 						_vramUsed / (1024.0 * 1024 * 1024), _vramBudget / (1024.0 * 1024 * 1024), fraction * 100.0f);
 					dmui::ui::ProgressBar(fraction, { OverlayContentWidth(), 0.0f }, "");
 				} else {
-					dmui::ui::TextDisabled("VRAM unavailable");
+					dmui::ui::TextDisabled("%s", localize::Text("VRAM unavailable"));
 				}
 			}
 			if (settings.ShowDrawCalls)
@@ -457,7 +458,7 @@ namespace cs::features
 
 		const auto button = [&](const char* a_id, const char* a_label, const char* a_help, auto a_apply) {
 			const auto result = ui::DrawActionField({ a_id, { .label = a_label, .help = a_help } }, [&](const char* a_suffix) {
-				const bool pressed = dmui::ui::Button(std::format("{}{}", a_label, a_suffix).c_str());
+				const bool pressed = dmui::ui::Button(std::format("{}{}", localize::Text(a_label), a_suffix).c_str());
 				return ui::EditResult{ pressed, pressed };
 			});
 			if (a_edit.Apply(result))
@@ -467,12 +468,12 @@ namespace cs::features
 		button("overlay-groups-hide-all", "Hide all", "Hides every group listed here from the overlay.", [&] { hidden = groups; });
 
 		if (groups.empty())
-			dmui::ui::TextDisabled("No profiler groups yet (enter game world)");
+			dmui::ui::TextDisabled("%s", localize::Text("No profiler groups yet (enter game world)"));
 		for (const auto& group : groups) {
 			const auto listed = std::ranges::find(hidden, group);
 			bool shown = listed == hidden.end();
 			const auto result = ui::DrawActionField({ "overlay-group-" + group, { .label = group } }, [&](const char* a_suffix) {
-				const bool changed = dmui::ui::Checkbox(std::format("Show{}", a_suffix).c_str(), &shown);
+				const bool changed = dmui::ui::Checkbox(std::format("{}{}", localize::Text("Show"), a_suffix).c_str(), &shown);
 				return ui::EditResult{ changed, changed };
 			});
 			if (!a_edit.Apply(result))
@@ -513,7 +514,7 @@ namespace cs::features
 				field(&Settings::ShowBorder);
 				field(&Settings::UpdateInterval, { .help = "How long the FPS readout averages over. It updates every frame; higher values steady it, lower values follow changes faster. Avg and 1% low refresh at this rate too (at most 4 times a second).", .format = "%.2f seconds", .flags = clamped });
 				field(&Settings::FrameHistorySize, { .format = "%d", .flags = clamped });
-				if (dmui::ui::Button("Reset Layout"))
+				if (dmui::ui::Button(localize::WidgetLabel("Reset Layout").c_str()))
 					host::HostClient::Get().ResetOverlay();
 			}
 		}
