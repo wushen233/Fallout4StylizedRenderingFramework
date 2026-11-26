@@ -134,6 +134,15 @@ namespace
 		for (const auto& target : cs::engine::GetShaderInjectionTargets())
 			CHECK(defaults.config.targets[target.id]);
 
+		std::string diagnosticsError;
+		const auto defaultDiagnostics = cs::settings::ParseCoreSection(
+			cs::settings::core::kDiagnostics, {}, "diagnostics", diagnosticsError);
+		CHECK(diagnosticsError.empty() && !defaultDiagnostics.prepassGeometryProbe);
+		const auto enabledDiagnostics = cs::settings::ParseCoreSection(
+			cs::settings::core::kDiagnostics,
+			toml::parse("[diagnostics]\nprepass_geometry_probe = true\n"), "diagnostics", diagnosticsError);
+		CHECK(diagnosticsError.empty() && enabledDiagnostics.prepassGeometryProbe);
+
 		CHECK(InitializeAt(a_path, a_registry).error.empty());
 		CHECK(ReadFile(a_path) == fresh);
 
