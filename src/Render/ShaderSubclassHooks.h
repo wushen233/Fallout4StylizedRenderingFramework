@@ -95,9 +95,17 @@ namespace cs::engine
 		std::uint64_t flagged = 0;
 	};
 
+	struct PrepassLaneHookStatus
+	{
+		bool attempted = false;
+		bool hooksInstalled = false;
+		bool classifierRegistered = false;
+	};
+
 	// Load/OnPostPostLoad only; false if patching failed or the component is taken.
 	// Immediate draws skip a disabled owner; baked records always classify.
 	[[nodiscard]] bool RegisterPrepassDrawClassifier(Feature& a_owner, PrepassLaneComponent a_component, PrepassDrawClassifier a_classifier);
+	[[nodiscard]] PrepassLaneHookStatus GetPrepassLaneHookStatus() noexcept;
 	[[nodiscard]] PrepassLaneStats GetPrepassLaneStats() noexcept;
 	[[nodiscard]] PrepassClassifierStats GetPrepassClassifierStats(PrepassLaneComponent a_component, PrepassBakePath a_path) noexcept;
 

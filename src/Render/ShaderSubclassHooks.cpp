@@ -9,6 +9,7 @@
 #include "Render/FrameAnnotations.h"
 #include "Render/FrameProfiler.h"
 #include "Render/NativeShaderFamily.h"
+#include "Render/PrepassGeometryProbe.h"
 #include "Render/PrepassTechnique.h"
 #include "Render/ShaderInjection.h"
 #include "Render/SkyReflectionCube.h"
@@ -218,6 +219,8 @@ namespace cs::engine
 		// Written only during Load, before rendering, so reads need no lock.
 		std::array<RegisteredClassifier, kPrepassLaneComponents> g_prepassClassifiers{};
 		bool g_prepassLaneActive = false;
+		bool g_prepassLaneHookAttempted = false;
+		bool g_prepassLaneHooksInstalled = false;
 		std::array<std::array<ClassifierCounts, kPrepassBakePaths>, kPrepassLaneComponents> g_classifierCounts;
 		std::atomic<std::uint64_t> g_laneBaked{ 0 };
 		std::atomic<std::uint64_t> g_laneUnavailable{ 0 };
@@ -232,6 +235,7 @@ namespace cs::engine
 
 		struct PrepassLaneRequest
 		{
+			RE::BSRenderPass* pass;
 			PrepassBakePath path;
 			std::uint32_t descriptor;
 			std::array<float, kPrepassLaneComponents> lane;
@@ -278,6 +282,7 @@ namespace cs::engine
 			PrepassBakePath a_path) noexcept
 		{
 			PrepassLaneRequest request{
+				.pass = a_pass,
 				.path = a_path,
 				.descriptor = a_pass->passEnum,
 				.lane = {},
@@ -349,6 +354,8 @@ namespace cs::engine
 			if (fits)
 				std::ranges::copy(request->lane, a_group->data + request->offset);
 			CountLane(fits, request->descriptor, request->offset);
+			prepass_geometry_probe::RecordLaneBake(
+				request->pass, request->path, request->offset, request->lane, fits);
 		}
 
 		struct PixelConstantMapHook
@@ -393,7 +400,9 @@ namespace cs::engine
 					return func(a_self, a_pass);
 				auto request = MakePrepassLaneRequest(a_self, a_pass, PrepassBakePath::kCommandBuffer);
 				const ThreadLocalPointerScope scope(t_prepassLane, &request);
-				return func(a_self, a_pass);
+				auto* record = func(a_self, a_pass);
+				prepass_geometry_probe::RecordCommandBufferCreate(a_pass, request.path, record);
+				return record;
 			}
 
 			static inline REL::Relocation<decltype(thunk)> func;
@@ -411,6 +420,8 @@ namespace cs::engine
 					if (fits)
 						std::ranges::copy(request->lane, a_param.pixelConstants + request->offset);
 					CountLane(fits, request->descriptor, request->offset);
+					prepass_geometry_probe::RecordLaneBake(
+						request->pass, request->path, request->offset, request->lane, fits);
 				}
 				return func(a_self, a_param);
 			}
@@ -460,12 +471,23 @@ namespace cs::engine
 			TryPatch(
 				"command-buffer builder lane",
 				[] { stl::detour_thunk<BuildCommandBufferHook>(RE::ID::BSShader::BuildCommandBuffer); });
+		g_prepassLaneHookAttempted = true;
+		g_prepassLaneHooksInstalled = installed;
 		auto& slot = g_prepassClassifiers[static_cast<std::size_t>(a_component)];
 		if (!installed || !a_classifier || slot.classify)
 			return false;
 		slot = { a_classifier, &a_owner };
 		g_prepassLaneActive = true;
 		return true;
+	}
+
+	PrepassLaneHookStatus GetPrepassLaneHookStatus() noexcept
+	{
+		return {
+			.attempted = g_prepassLaneHookAttempted,
+			.hooksInstalled = g_prepassLaneHooksInstalled,
+			.classifierRegistered = g_prepassLaneActive
+		};
 	}
 
 	PrepassLaneStats GetPrepassLaneStats() noexcept
@@ -496,6 +518,7 @@ namespace cs::engine
 	void InstallShaderSubclassHooks()
 	{
 		std::call_once(g_installOnce, [] {
+			prepass_geometry_probe::Configure();
 			TryPatch("BSShader archive loader observer", [] {
 				stl::detour_thunk<ReloadFromStreamHook>(RE::ID::BSShader::Load);
 			});
