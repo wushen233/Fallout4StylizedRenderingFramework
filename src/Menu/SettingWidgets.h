@@ -223,7 +223,7 @@ namespace cs::ui
 		using Value = typename Field::ValueType;
 		std::vector<dmui::ChoiceOption<Value>> options;
 		for (const auto& choice : a_field.choices)
-			options.push_back({ choice.value, std::string(choice.text), std::string(choice.text), true });
+			options.push_back({ choice.value, localize::Translate(choice.text), std::string(choice.text), true });
 		return EditChoice(a_field, a_settings, a_defaults, std::span<const dmui::ChoiceOption<Value>>{ options }, a_dropdown);
 	}
 }

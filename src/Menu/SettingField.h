@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Host/HostClient.h"
+#include "Menu/Localization.h"
 
 #include <DearModdingUI/Client.h>
 
@@ -95,8 +96,8 @@ namespace cs::ui
 		FieldOutcome DrawFieldRow(const FieldSpec& a_spec, std::optional<bool> a_reset, Draw&& a_draw)
 		{
 			const std::string id(a_spec.id);
-			const std::string label(a_spec.look.label);
-			const std::string help(a_spec.look.help);
+			const auto label = localize::Translate(a_spec.look.label);
+			const auto help = localize::Translate(a_spec.look.help);
 			dmui::FieldScope field{ host::HostClient::Get().Client(), id.c_str(), label.c_str(),
 				help.empty() ? nullptr : help.c_str() };
 			if (field.Result() != DMUI_RESULT_OK || !field.Visible())
@@ -106,7 +107,7 @@ namespace cs::ui
 			FieldOutcome outcome{ a_draw(hidden.c_str()) };
 			const auto* page = FieldPage::Current();
 			if (page && page->NeedsRestart(a_spec.restart.empty() ? a_spec.look.label : a_spec.restart))
-				static_cast<void>(field.SetFeedback(dmui::FieldFeedbackSeverity::kWarning, "Restart required"));
+				static_cast<void>(field.SetFeedback(dmui::FieldFeedbackSeverity::kWarning, localize::Text("Restart required")));
 			const auto pressed = field.End(a_reset.has_value(), a_reset.value_or(false));
 			outcome.resetPressed = pressed.value_or(false);
 			return outcome;

@@ -2,6 +2,7 @@
 
 #include "Feature.h"
 #include "Log.h"
+#include "Menu/Localization.h"
 #include "Menu/Menu.h"
 #include "Menu/ProfilingRenderer.h"
 #include "Menu/Section.h"
@@ -207,8 +208,9 @@ namespace cs::host
 
 		auto catalog = BuildPageCatalog(inputs);
 		for (const auto& category : catalog.categories) {
+			const auto displayName = localize::Translate(category.displayName);
 			if (!_client.AddCategory({ .id = category.id.c_str(),
-					.displayName = category.displayName.c_str(),
+					.displayName = displayName.c_str(),
 					.sortKey = category.sortKey,
 					.iconName = category.iconName.c_str() })) {
 				LogFailure("register category");
@@ -224,6 +226,8 @@ namespace cs::host
 			                descriptor.kind == HostPageKind::kProfiling ?
 			                    features::PerformanceOverlay::GetSingleton() :
 			                    nullptr;
+			descriptor.displayName = localize::Translate(descriptor.displayName);
+			descriptor.summary = localize::Translate(descriptor.summary);
 			page->descriptor = std::move(descriptor);
 			const dmui::PageDescriptor pageDescriptor{
 				.id = page->descriptor.id.c_str(),
@@ -262,7 +266,7 @@ namespace cs::host
 		bool succeeded = true;
 		if (!_client.AddAction(
 				"clear-shader-cache",
-				"Clear Shader Cache",
+				localize::Text("Clear Shader Cache"),
 				"trash",
 				"",
 				[this] {
@@ -302,7 +306,7 @@ namespace cs::host
 	{
 		a_channel.enabled = std::move(a_enabled);
 		a_channel.handle = _client.AddHotkeyAction(
-			a_id, a_displayName, a_suggestedChord, std::move(a_callback), a_contextPolicy);
+			a_id, localize::Text(a_displayName), a_suggestedChord, std::move(a_callback), a_contextPolicy);
 		if (!a_channel.handle) {
 			LogFailure(std::format("register {} hotkey", a_channel.name));
 			return false;
@@ -564,7 +568,7 @@ namespace cs::host
 				if (!dmui::DrawStyledText(
 						_client,
 						state.detail.empty() ?
-							"See the log for details." :
+							localize::Text("See the log for details.") :
 							state.detail,
 						{ .tone = tone })) {
 					LogFailure("draw feature failure detail");
@@ -596,7 +600,7 @@ namespace cs::host
 				if (loadAtBoot) {
 					if (!dmui::DrawStyledText(
 							_client,
-							"This feature will be available after restart.",
+							localize::Text("This feature will be available after restart."),
 							{ .tone =
 									dmui::TextTone::kStatusRestartNeeded })) {
 						LogFailure("draw feature restart availability");
@@ -605,7 +609,7 @@ namespace cs::host
 				} else {
 					if (!dmui::DrawStyledText(
 							_client,
-							"Not loaded. Enable it in Advanced > Load on startup, then restart.",
+							localize::Text("Not loaded. Enable it in Advanced > Load on startup, then restart."),
 							{ .tone = dmui::TextTone::kStatusDisable })) {
 						LogFailure("draw feature disabled availability");
 						return false;
@@ -652,7 +656,7 @@ namespace cs::host
 		const auto restore = ui::DrawActionField(
 			{ "feature-reset", { .label = "Restore defaults", .help = "Resets every setting on this page to its default." } },
 			[](const char* a_label) {
-				const bool pressed = dmui::ui::Button(std::format("Restore{}", a_label).c_str());
+				const bool pressed = dmui::ui::Button(std::format("{}{}", localize::Text("Restore"), a_label).c_str());
 				return ui::EditResult{ pressed, pressed };
 			});
 		if (restore.changed)

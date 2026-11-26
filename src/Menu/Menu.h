@@ -100,6 +100,7 @@ namespace cs
 		void DrawLinks(dmui::Client& a_client);
 		void DrawFaq(dmui::Client& a_client);
 		void DrawBulletList(dmui::Client& a_client, const std::vector<std::string>& a_items);
+		void DrawLanguageSettings(dmui::Client& a_client);
 		void DrawShaderSettings(dmui::Client& a_client);
 		void DrawDebugTexture(dmui::Client& a_client, const Feature& a_feature);
 		void StartDialog(
@@ -113,6 +114,7 @@ namespace cs
 			bool a_succeeded,
 			std::string_view a_operation);
 
+		std::string _requestedLanguage;
 		debug_view::SelectionState _debugViews;
 		StartupLoadSnapshot _startupLoads;
 		std::unordered_map<std::string, DebugImage> _debugImages;
