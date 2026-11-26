@@ -104,7 +104,7 @@ namespace cs::features::cs_editor
 				clear = ui::DrawActionField(
 					{ id + "-clear", { .label = "Clear overrides", .help = "Removes every override for this weather." } },
 					[](const char* a_label) {
-						const bool pressed = dmui::ui::Button(std::format("{}{}", localize::Text("Clear"), a_label).c_str());
+						const bool pressed = dmui::ui::Button(std::format("{}#{}", localize::Text("Clear"), a_label).c_str());
 						return ui::EditResult{ pressed, pressed };
 					})
 				            .changed;

@@ -1,4 +1,5 @@
 #include "Log.h"
+#include "Menu/Localization.h"
 #include "Menu/ChangelogResource.h"
 #include "Menu/Menu.h"
 #include "Menu/Section.h"
@@ -86,10 +87,10 @@ namespace cs
 				continue;
 			if (!release.highlights.empty()) {
 				static_cast<void>(dmui::DrawStyledText(
-					a_client, "Highlights", { .fontRole = DMUI_FONT_ROLE_SUBHEADING }));
+					a_client, localize::Text("Highlights"), { .fontRole = DMUI_FONT_ROLE_SUBHEADING }));
 				DrawBulletList(a_client, release.highlights);
 				static_cast<void>(dmui::DrawStyledText(
-					a_client, "Changes", { .fontRole = DMUI_FONT_ROLE_SUBHEADING }));
+					a_client, localize::Text("Changes"), { .fontRole = DMUI_FONT_ROLE_SUBHEADING }));
 			}
 			DrawBulletList(a_client, release.items);
 		}
@@ -103,12 +104,12 @@ namespace cs
 		if (release == releases.end())
 			return;
 
-		const auto title = "What's new in " + release->version;
+		const auto title = localize::Message("What's new in {0}", { release->version });
 		const ui::Section section{ "whats-new", title.c_str() };
 		if (!section)
 			return;
 		DrawBulletList(a_client, release->highlights);
-		if (dmui::ui::Button("View full changelog"))
+		if (dmui::ui::Button(localize::WidgetLabel("View full changelog").c_str()))
 			host::HostClient::Get().SelectPage(host::HostPageKind::kChangelog);
 	}
 }

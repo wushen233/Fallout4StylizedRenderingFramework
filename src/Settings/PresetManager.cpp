@@ -1,4 +1,5 @@
 #include "Settings/PresetManager.h"
+#include "Menu/Localization.h"
 
 #include "Feature.h"
 #include "Log.h"
@@ -322,7 +323,7 @@ namespace cs
 		try {
 			if (!settings::ApplyPreparedLiveSettings(prepared)) {
 				a_err = "live preset state was swapped, but feature files could not be saved; active preset identity was not persisted; see log";
-				Menu::ShowToast("Applied '" + a_meta.name + "' but active preset could not be saved",
+				Menu::ShowToast(localize::Message("Applied '{0}' but active preset could not be saved", { a_meta.name }),
 					5.0, DMUI_STATUS_SEVERITY_ERROR, a_meta.name);
 				return false;
 			}
@@ -340,14 +341,14 @@ namespace cs
 		if (!SaveCoreConfig()) {
 			a_err = "live preset state was swapped, but active preset identity could not be saved";
 			L->error("{}", a_err);
-			Menu::ShowToast("Applied '" + a_meta.name + "' but active preset could not be saved",
+			Menu::ShowToast(localize::Message("Applied '{0}' but active preset could not be saved", { a_meta.name }),
 				5.0, DMUI_STATUS_SEVERITY_ERROR, a_meta.name);
 			return false;
 		}
 
 		L->info("Applied preset: {} ({}, {} feature(s))", a_meta.name,
 			a_meta.builtin ? "builtin" : "user", staged.size());
-		Menu::ShowToast("Applied preset '" + a_meta.name + "'", 2.5, DMUI_STATUS_SEVERITY_INFO, a_meta.name);
+		Menu::ShowToast(localize::Message("Applied preset '{0}'", { a_meta.name }), 2.5, DMUI_STATUS_SEVERITY_INFO, a_meta.name);
 		return true;
 	}
 

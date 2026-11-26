@@ -458,7 +458,7 @@ namespace cs::features
 
 		const auto button = [&](const char* a_id, const char* a_label, const char* a_help, auto a_apply) {
 			const auto result = ui::DrawActionField({ a_id, { .label = a_label, .help = a_help } }, [&](const char* a_suffix) {
-				const bool pressed = dmui::ui::Button(std::format("{}{}", localize::Text(a_label), a_suffix).c_str());
+				const bool pressed = dmui::ui::Button(std::format("{}#{}", localize::Text(a_label), a_suffix).c_str());
 				return ui::EditResult{ pressed, pressed };
 			});
 			if (a_edit.Apply(result))
@@ -473,7 +473,7 @@ namespace cs::features
 			const auto listed = std::ranges::find(hidden, group);
 			bool shown = listed == hidden.end();
 			const auto result = ui::DrawActionField({ "overlay-group-" + group, { .label = group } }, [&](const char* a_suffix) {
-				const bool changed = dmui::ui::Checkbox(std::format("{}{}", localize::Text("Show"), a_suffix).c_str(), &shown);
+				const bool changed = dmui::ui::Checkbox(std::format("{}#{}", localize::Text("Show"), a_suffix).c_str(), &shown);
 				return ui::EditResult{ changed, changed };
 			});
 			if (!a_edit.Apply(result))

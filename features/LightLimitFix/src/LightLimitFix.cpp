@@ -1,4 +1,5 @@
 #include "LightLimitFix.h"
+#include "Menu/Localization.h"
 #include "Authoring/LightDerivation.h"
 #include "Clustered/ClusterGrid.h"
 #include "Clustered/LightGather.h"
@@ -626,11 +627,7 @@ namespace cs::features
 		settings::SettingsEdit edit{ *this };
 		const auto field = edit.Bind(_live);
 		if (const ui::Section section{ "llf-general", "General" }; section) {
-			const auto help = std::format(
-				"Off: only lights authored in {}\\*.toml are inverse-square. On: lights "
-				"without an entry convert from their native falloff; an entry is "
-				"authoritative and never merged. Changes require a restart.",
-				kDirectory);
+			const auto help = localize::Message("Off: only lights authored in {0}\\*.toml are inverse-square. On: lights without an entry convert from their native falloff; an entry is authoritative and never merged. Changes require a restart.", { kDirectory });
 			field(&Settings::deriveUnauthoredLights, { .help = help });
 		}
 		if (const ui::Section section{ "llf-local-shadows", "Local Shadows" }; section) {

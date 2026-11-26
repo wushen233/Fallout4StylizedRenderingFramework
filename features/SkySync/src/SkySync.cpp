@@ -867,7 +867,7 @@ namespace cs::features
 			const bool listed = IsListed(field.Values().DisabledWorldspaces, editorID);
 			const dmui::DisabledScope disabled{ editorID.empty() || listed };
 			const auto add = ui::DrawActionField({ "AddCurrentWorldspace", { .label = "Current worldspace", .help = "Adds the player's current worldspace to the list." } },
-				[&](const char* a_label) {
+				[&](const char*) {
 					const bool pressed = dmui::ui::Button((std::string(localize::Text("Add")) + " " + (editorID.empty() ? std::string("-") : editorID) + "###AddCurrentWorldspace").c_str());
 					return ui::EditResult{ pressed, pressed };
 				});

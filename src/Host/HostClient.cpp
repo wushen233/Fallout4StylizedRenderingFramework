@@ -656,7 +656,7 @@ namespace cs::host
 		const auto restore = ui::DrawActionField(
 			{ "feature-reset", { .label = "Restore defaults", .help = "Resets every setting on this page to its default." } },
 			[](const char* a_label) {
-				const bool pressed = dmui::ui::Button(std::format("{}{}", localize::Text("Restore"), a_label).c_str());
+				const bool pressed = dmui::ui::Button(std::format("{}#{}", localize::Text("Restore"), a_label).c_str());
 				return ui::EditResult{ pressed, pressed };
 			});
 		if (restore.changed)

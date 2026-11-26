@@ -526,7 +526,7 @@ namespace cs
 				if (!ui::DrawRow(a_client, id.c_str(), label.c_str(), finding.source.c_str(), [&](auto&) {
 						return CheckHostResult(
 							a_client,
-							dmui::DrawStyledText(a_client, finding.rule.reason, { .wrapped = true }),
+							dmui::DrawStyledText(a_client, localize::Translate(finding.rule.reason), { .wrapped = true }),
 							"draw compatibility detail");
 					}))
 					return false;
@@ -951,7 +951,7 @@ namespace cs
 				render::PostToFrame([&presets, meta = *pending] {
 					std::string error;
 					if (!presets.Apply(meta, error))
-						presets.lastError = "Load failed: " + error;
+						presets.lastError = localize::Message("Load failed: {0}", { error });
 					else
 						presets.lastError.clear();
 				});
@@ -967,7 +967,7 @@ namespace cs
 				const auto path = active->path;
 				std::string error;
 				if (!presets.Save(path, name, error, true)) {
-					presets.lastError = "Save failed: " + error;
+					presets.lastError = localize::Message("Save failed: {0}", { error });
 				} else {
 					presets.Refresh();
 					presets.activeIdentity = identity;
@@ -995,7 +995,7 @@ namespace cs
 				auto& manager = PresetManager::Get();
 				std::string error;
 				if (!ValidatePresetName(a_text, manager.List(), error))
-					return "Invalid name: " + error;
+					return localize::Message("Invalid name: {0}", { error });
 				const std::string name(a_text);
 				const auto path = std::filesystem::path(kPresetRoot) / (name + ".toml");
 				if (!manager.Save(path, name, error))
