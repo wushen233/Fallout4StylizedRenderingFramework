@@ -129,6 +129,14 @@ namespace cs::localize
 			return translated ? *translated : std::string(a_english);
 		}
 
+		// Context-specific keys must fall back to their own English text, not
+		// a potentially unrelated translation of the same English word.
+		[[nodiscard]] const char* ContextText(std::string_view a_key, const char* a_english) const noexcept
+		{
+			const auto* translated = Find(a_key);
+			return translated ? translated->c_str() : a_english;
+		}
+
 		[[nodiscard]] std::string Message(std::string_view a_english,
 			std::initializer_list<std::string_view> a_values) const
 		{
@@ -166,6 +174,11 @@ namespace cs::localize
 			return nullptr;
 		const auto* translated = Get().Find(a_english);
 		return translated ? translated->c_str() : a_english;
+	}
+
+	[[nodiscard]] inline const char* ContextText(std::string_view a_key, const char* a_english)
+	{
+		return Get().ContextText(a_key, a_english);
 	}
 
 	[[nodiscard]] inline std::string Message(std::string_view a_english,

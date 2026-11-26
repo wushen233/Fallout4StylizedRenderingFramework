@@ -476,11 +476,12 @@ namespace cs::features
 		};
 		const auto methodOption = [&](std::uint32_t a_method,
 									  std::string_view a_key) {
-			const auto methodAvailability = availability(a_method);
+			auto methodAvailability = availability(a_method);
+			methodAvailability.reason = localize::Translate(methodAvailability.reason);
 			return dmui::ChoiceOption<std::uint32_t>{
 				a_method,
 				render::temporal::presentation::OptionLabel(
-					MethodName(a_method), methodAvailability),
+					localize::Translate(MethodName(a_method)), methodAvailability),
 				std::string(a_key),
 				methodAvailability.Selectable()
 			};
@@ -535,11 +536,9 @@ namespace cs::features
 					_live.Draft().dlssgFixedMultiplier - 1 <= knownMaxGenerated;
 				if (_live.Draft().dlssgMode == 0 &&
 					!currentFixedSupported) {
-					const auto reason = capabilitiesCurrent                       ? std::format(
-																						"runtime maximum is {}x",
-																						dlssCapabilities.maxGeneratedFrames + 1) :
-					                    dlssCapabilities.configurationQueryFailed ? std::string("runtime capability check failed") :
-					                                                                std::string("checking availability");
+					const auto reason = capabilitiesCurrent                       ? localize::Message("runtime maximum is {0}x", { std::to_string(dlssCapabilities.maxGeneratedFrames + 1) }) :
+					                    dlssCapabilities.configurationQueryFailed ? localize::Translate("runtime capability check failed") :
+					                                                                localize::Translate("checking availability");
 					generationOptions.insert(
 						generationOptions.begin(),
 						{ _live.Draft().dlssgFixedMultiplier,
@@ -562,7 +561,7 @@ namespace cs::features
 				}
 				generationOptions.push_back(
 					{ kDynamicChoice,
-						dynamicSupported ? "Dynamic" : std::format("Dynamic — {}", dynamicReason),
+						dynamicSupported ? localize::Translate("Dynamic") : std::format("{} — {}", localize::Text("Dynamic"), localize::Translate(dynamicReason)),
 						"dynamic",
 						dynamicSupported });
 				const auto enabledOptions = std::ranges::count_if(
@@ -644,7 +643,7 @@ namespace cs::features
 			field(&Settings::frameGenerationAllowInMenus, { .label = "Allow in menus" });
 
 			if (status.pending.required) {
-				dmui::ui::TextWrapped("%s", status.pending.reason.c_str());
+				dmui::ui::TextWrapped("%s", localize::Translate(status.pending.reason).c_str());
 			}
 		}
 	}
@@ -659,29 +658,14 @@ namespace cs::features
 		const auto diagnostics =
 			pipeline.GetFrameGenerationDiagnostics();
 		edit.Bind(_live)(&Settings::detailedDiagnostics, { .label = "Detailed diagnostics" });
-		dmui::ui::TextDisabled(
-			"Ready: %s | active: %s | dispatches: %llu | failures: %llu",
-			diagnostics.ready ? "yes" : "no",
-			diagnostics.active ? "yes" : "no",
-			static_cast<unsigned long long>(diagnostics.dispatches),
-			static_cast<unsigned long long>(diagnostics.failures));
+		dmui::ui::TextDisabled("%s", localize::Message("Ready: {0} | active: {1} | dispatches: {2} | failures: {3}", { localize::Text(diagnostics.ready ? "yes" : "no"), localize::Text(diagnostics.active ? "yes" : "no"), std::to_string(diagnostics.dispatches), std::to_string(diagnostics.failures) }).c_str());
 		if (diagnostics.generatedFrameCountAvailable) {
-			dmui::ui::TextDisabled(
-				"Provider generated frames: %llu",
-				static_cast<unsigned long long>(
-					diagnostics.generatedFrames));
+			dmui::ui::TextDisabled("%s", localize::Message("Provider generated frames: {0}", { std::to_string(diagnostics.generatedFrames) }).c_str());
 		}
-		dmui::ui::TextDisabled(
-			"DLSS-G: %s | current: %s | max generation: %ux | dynamic: %s | status: %u",
-			AvailabilityName(dlssCapabilities.availability),
-			dlssCapabilities.IsCurrent() ? "yes" : "no",
-			dlssCapabilities.maxGeneratedFrames ? dlssCapabilities.maxGeneratedFrames + 1 : 0,
-			dlssCapabilities.dynamicModeSupported ? "yes" : "no",
-			dlssCapabilities.providerStatus);
+		dmui::ui::TextDisabled("%s", localize::Message("DLSS-G: {0} | current: {1} | max generation: {2}x | dynamic: {3} | status: {4}", { localize::Text(AvailabilityName(dlssCapabilities.availability)), localize::Text(dlssCapabilities.IsCurrent() ? "yes" : "no"), std::to_string(dlssCapabilities.maxGeneratedFrames ? dlssCapabilities.maxGeneratedFrames + 1 : 0), localize::Text(dlssCapabilities.dynamicModeSupported ? "yes" : "no"), std::to_string(dlssCapabilities.providerStatus) }).c_str());
 		if (currentStatus.pending.required) {
 			dmui::ui::TextDisabled(
-				"Restart required: %s",
-				currentStatus.pending.reason.c_str());
+				"%s: %s", localize::Text("Restart required"), localize::Translate(currentStatus.pending.reason).c_str());
 		}
 		if (!currentStatus.failure.empty()) {
 			dmui::ui::TextDisabled(
@@ -690,11 +674,11 @@ namespace cs::features
 		}
 		auto& renderer = pipeline.Renderer();
 		if (renderer.HasFrameGenerationDebugSnapshotSelection()) {
-			if (dmui::ui::Button("Refresh snapshot"))
+			if (dmui::ui::Button(localize::WidgetLabel("Refresh snapshot").c_str()))
 				renderer.RefreshFrameGenerationDebugSnapshot();
 			if (renderer.FrameGenerationDebugSnapshotPending())
 				dmui::ui::TextDisabled(
-					"Refresh pending; the previous snapshot remains visible.");
+					"%s", localize::Text("Refresh pending; the previous snapshot remains visible."));
 		}
 	}
 

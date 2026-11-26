@@ -114,11 +114,12 @@ namespace cs::features
 		};
 		const auto methodOption = [&](std::uint32_t a_method,
 									  std::string_view a_key) {
-			const auto methodAvailability = availability(a_method);
+			auto methodAvailability = availability(a_method);
+			methodAvailability.reason = localize::Translate(methodAvailability.reason);
 			return dmui::ChoiceOption<std::uint32_t>{
 				a_method,
 				render::temporal::presentation::OptionLabel(
-					MethodName(a_method), methodAvailability),
+					localize::Translate(MethodName(a_method)), methodAvailability),
 				std::string(a_key),
 				methodAvailability.Selectable()
 			};
@@ -193,27 +194,15 @@ namespace cs::features
 			const auto selectedName = MethodName(_live.Draft().upscaleMethod);
 			const auto selectedAvailability = availability(_live.Draft().upscaleMethod);
 			if (status.transitionInFlight) {
-				dmui::ui::TextDisabled(
-					"Switching to %.*s...",
-					static_cast<int>(selectedName.size()),
-					selectedName.data());
+				dmui::ui::TextDisabled("%s", localize::Message("Switching to {0}...", { localize::Translate(selectedName) }).c_str());
 			} else if (selectedAvailability.kind !=
 					   render::temporal::presentation::AvailabilityKind::kAvailable) {
-				dmui::ui::TextWrapped(
-					"%s. %.*s remains active.",
-					selectedAvailability.reason.c_str(),
-					static_cast<int>(effectiveName.size()),
-					effectiveName.data());
+				dmui::ui::TextWrapped("%s", localize::Message("{0}. {1} remains active.", { localize::Translate(selectedAvailability.reason), localize::Translate(effectiveName) }).c_str());
 			} else if (status.effective.superResolution !=
 						   static_cast<render::temporal::SuperResolutionMethod>(
 							   _live.Draft().upscaleMethod) &&
 					   !status.failure.empty()) {
-				dmui::ui::TextWrapped(
-					"Could not activate %.*s. %.*s remains active; see Debug.",
-					static_cast<int>(selectedName.size()),
-					selectedName.data(),
-					static_cast<int>(effectiveName.size()),
-					effectiveName.data());
+				dmui::ui::TextWrapped("%s", localize::Message("Could not activate {0}. {1} remains active; see Debug.", { localize::Translate(selectedName), localize::Translate(effectiveName) }).c_str());
 			}
 		}
 
@@ -255,7 +244,7 @@ namespace cs::features
 				}
 				break;
 			}
-			dmui::ui::TextDisabled("%s", latencyStatus);
+			dmui::ui::TextDisabled("%s", localize::Text(latencyStatus));
 			const std::array reductions{
 				dmui::ChoiceOption<std::uint32_t>{ 0, "Off", "off" },
 				dmui::ChoiceOption<std::uint32_t>{ 1, "On", "on" },
@@ -293,34 +282,21 @@ namespace cs::features
 		edit.Bind(_live)
 			.Choice(&Settings::streamlineLogLevel, logLevels, { .label = "Streamline logging" });
 		const auto [scale, ready] = pipeline.Renderer().GetReadiness();
-		dmui::ui::TextDisabled(
-			"Render: %ux%u -> %ux%u (%.0f%%) | resources: %s",
-			renderWidth,
-			renderHeight,
-			currentStatus.display.output.width,
-			currentStatus.display.output.height,
-			static_cast<double>(scale) * 100.0,
-			ready ? "ready" : "not ready");
-		dmui::ui::TextDisabled(
-			"Requested: %.*s | effective: %.*s",
-			static_cast<int>(MethodName(settings.upscaleMethod).size()),
-			MethodName(settings.upscaleMethod).data(),
-			static_cast<int>(effectiveName.size()),
-			effectiveName.data());
+		dmui::ui::TextDisabled("%s", localize::Message("Render: {0} -> {1} ({2}%) | resources: {3}", { std::format("{}x{}", renderWidth, renderHeight), std::format("{}x{}", currentStatus.display.output.width, currentStatus.display.output.height), std::format("{:.0f}", static_cast<double>(scale) * 100.0), localize::Text(ready ? "ready" : "not ready") }).c_str());
+		dmui::ui::TextDisabled("%s", localize::Message("Requested: {0} | effective: {1}", { localize::Translate(MethodName(settings.upscaleMethod)), localize::Translate(effectiveName) }).c_str());
 		if (currentStatus.pending.required)
 			dmui::ui::TextDisabled(
-				"Restart required: %s",
-				currentStatus.pending.reason.c_str());
+				"%s: %s", localize::Text("Restart required"), localize::Translate(currentStatus.pending.reason).c_str());
 		if (!currentStatus.failure.empty())
 			dmui::ui::TextDisabled(
 				"%s",
 				currentStatus.failure.c_str());
 		if (pipeline.Renderer().HasDebugSnapshotSelection()) {
-			if (dmui::ui::Button("Refresh snapshot"))
+			if (dmui::ui::Button(localize::WidgetLabel("Refresh snapshot").c_str()))
 				pipeline.Renderer().RefreshDebugSnapshot();
 			if (pipeline.Renderer().DebugSnapshotPending())
 				dmui::ui::TextDisabled(
-					"Refresh pending; the previous snapshot remains visible.");
+					"%s", localize::Text("Refresh pending; the previous snapshot remains visible."));
 		}
 	}
 

@@ -780,7 +780,7 @@ namespace cs
 								log::GlobalLevel(),
 								std::span<const dmui::ChoiceOption<
 									spdlog::level::level_enum>>{
-									logLevelOptions, }, localize::Text("Unavailable"));
+									logLevelOptions }, localize::Text("Unavailable"));
 						if (selected.changed) {
 							log::SetGlobalLevel(*selected.selected);
 							(void)log::SaveConfigToToml();
@@ -814,7 +814,7 @@ namespace cs
 										current,
 										std::span<const dmui::ChoiceOption<
 											spdlog::level::level_enum>>{
-											logLevelOptions, }, localize::Text("Unavailable"));
+											logLevelOptions }, localize::Text("Unavailable"));
 								if (selected.changed) {
 									log::SetLevel(name.c_str(), *selected.selected);
 									(void)log::SaveConfigToToml();

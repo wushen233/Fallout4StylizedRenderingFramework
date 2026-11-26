@@ -1,4 +1,5 @@
 #include "SkySync.h"
+#include "Menu/Localization.h"
 
 #include <DearModdingUI/Client.h>
 
@@ -867,7 +868,7 @@ namespace cs::features
 			const dmui::DisabledScope disabled{ editorID.empty() || listed };
 			const auto add = ui::DrawActionField({ "AddCurrentWorldspace", { .label = "Current worldspace", .help = "Adds the player's current worldspace to the list." } },
 				[&](const char* a_label) {
-					const bool pressed = dmui::ui::Button(("Add " + (editorID.empty() ? std::string("-") : editorID) + a_label).c_str());
+					const bool pressed = dmui::ui::Button((std::string(localize::Text("Add")) + " " + (editorID.empty() ? std::string("-") : editorID) + "###AddCurrentWorldspace").c_str());
 					return ui::EditResult{ pressed, pressed };
 				});
 			if (edit.Apply(add))
@@ -882,25 +883,28 @@ namespace cs::features
 
 		const auto* sky = RE::Sky::GetSingleton();
 		const char* phase = sky ? phaseNames[static_cast<int>(engine::moon::GetPhase(*sky))] : "Unknown";
+		phase = std::string_view(phase) == "Full" ?
+		            localize::ContextText("feature.skysync.moonphase.full", "Full") :
+		            localize::Text(phase);
 		const auto drawMoon = [&](const char* a_label, Caster a_caster) {
 			const auto& color = _colors[static_cast<int>(a_caster)];
-			dmui::ui::Text("%s  [%s]  color (%.3f, %.3f, %.3f, %.3f)", a_label, phase, static_cast<double>(color.x), static_cast<double>(color.y), static_cast<double>(color.z), static_cast<double>(color.w));
+			dmui::ui::Text("%s  [%s]  %s (%.3f, %.3f, %.3f, %.3f)", a_label, phase, localize::Text("color"), static_cast<double>(color.x), static_cast<double>(color.y), static_cast<double>(color.z), static_cast<double>(color.w));
 		};
 		drawMoon("Masser", Caster::kMasser);
 		drawMoon("Secunda", Caster::kSecunda);
 
-		dmui::ui::Text("Dim: %.3f", static_cast<double>(_currentDim));
+		dmui::ui::Text("%s: %.3f", localize::Text("Dim"), static_cast<double>(_currentDim));
 		dmui::ui::Separator();
-		dmui::ui::Text("Shadow target: %s", casterNames[static_cast<int>(_shadowFader.target)]);
-		dmui::ui::Text("Shadow dir:    (%.2f, %.2f, %.2f)", static_cast<double>(_shadowFader.currentDir.x), static_cast<double>(_shadowFader.currentDir.y), static_cast<double>(_shadowFader.currentDir.z));
-		dmui::ui::Text("Transition intensity factor: %.3f", static_cast<double>(_shadowFader.intensityFactor));
-		dmui::ui::Text("Caster fade: %.3f", static_cast<double>(_shadowFader.casterFade));
+		dmui::ui::Text("%s: %s", localize::Text("Shadow target"), localize::Text(casterNames[static_cast<int>(_shadowFader.target)]));
+		dmui::ui::Text("%s:    (%.2f, %.2f, %.2f)", localize::Text("Shadow dir"), static_cast<double>(_shadowFader.currentDir.x), static_cast<double>(_shadowFader.currentDir.y), static_cast<double>(_shadowFader.currentDir.z));
+		dmui::ui::Text("%s: %.3f", localize::Text("Transition intensity factor"), static_cast<double>(_shadowFader.intensityFactor));
+		dmui::ui::Text("%s: %.3f", localize::Text("Caster fade"), static_cast<double>(_shadowFader.casterFade));
 		if (_shadowFader.transitioning) {
 			const float t = _shadowFader.Progress(_settings.ShadowTransitionDuration);
 			dmui::ui::ProgressBar(t);
-			dmui::ui::Text("Transitioning %.0f%%", static_cast<double>(t * 100.0f));
+			dmui::ui::Text("%s %.0f%%", localize::Text("Transitioning"), static_cast<double>(t * 100.0f));
 		} else {
-			dmui::ui::TextDisabled("No transition");
+			dmui::ui::TextDisabled("%s", localize::Text("No transition"));
 		}
 	}
 

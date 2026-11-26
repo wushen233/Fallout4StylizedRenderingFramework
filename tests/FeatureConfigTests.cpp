@@ -114,6 +114,8 @@ namespace
 "Duplicate {0}" = "{0}{0}"
 "Index {0}" = "{1}"
 "Bad label" = "坏###injected"
+"Full" = "全分辨率"
+"feature.skysync.moonphase.full" = "满月"
 "Empty" = ""
 "Invalid" = 42
 )");
@@ -131,6 +133,9 @@ namespace
 		CHECK(chinese.Message("Index {0}", { "A" }) == "Index A");
 		CHECK(chinese.WidgetLabel("Enabled") == "启用###Enabled");
 		CHECK(chinese.WidgetLabel("Bad label") == "Bad label###Bad label");
+		CHECK(std::string_view(chinese.ContextText("feature.skysync.moonphase.full", "Full")) == "满月");
+		CHECK(std::string_view(chinese.ContextText("feature.other.full", "Full")) == "Full");
+		CHECK(chinese.Translate("Full") == "全分辨率");
 		CHECK(cs::localize::Catalog::Load(a_directory, "en").WidgetLabel("Enabled") == "Enabled###Enabled");
 		CHECK(chinese.Translate("Missing") == "Missing");
 		CHECK(chinese.Translate("Empty") == "Empty");
