@@ -31,8 +31,7 @@ namespace cs::localize
 		{
 			return !a_code.empty() && a_code.size() <= 32 &&
 			       std::ranges::all_of(a_code, [](unsigned char c) {
-					   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-					          (c >= '0' && c <= '9') || c == '_' || c == '-';
+					   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-';
 				   });
 		}
 
