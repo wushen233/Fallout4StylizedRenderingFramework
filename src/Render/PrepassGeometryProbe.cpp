@@ -4,6 +4,7 @@
 #include "Render/Engine.h"
 #include "Render/PrepassProbePolicy.h"
 #include "Render/PrepassTechnique.h"
+#include "Render/ShaderSubclassHooks.h"
 #include "Settings/FeatureConfig.h"
 #include "Settings/SettingsRegistry.h"
 

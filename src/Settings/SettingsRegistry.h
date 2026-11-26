@@ -52,7 +52,7 @@ namespace cs::settings
 		inline constexpr Schema kDiagnostics{
 			std::tuple{
 				Field{ "frame_annotations", "Name engine passes and draws in GPU captures (RenderDoc, Nsight); adds CPU cost.", &Diagnostics::frameAnnotations, {}, ApplyTiming::kNextLaunch },
-				Field{ "prepass_geometry_probe", "Sample bounded Face/SkinTint ownership and transform data during Prepass constant baking; diagnostic only.", &Diagnostics::prepassGeometryProbe, {}, ApplyTiming::kNextLaunch } }
+				Field{ "prepass_geometry_probe", "Sample bounded Face/SkinTint ownership and lane data during Prepass constant baking; diagnostic only.", &Diagnostics::prepassGeometryProbe, {}, ApplyTiming::kNextLaunch } }
 		};
 
 		struct ShaderTarget
