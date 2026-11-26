@@ -6,6 +6,15 @@ on:
       - main
   pull_request:
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: 'Publish a stable release (main only; default is candidate build)'
+        type: boolean
+        default: false
+      expected_commit:
+        description: 'Exact main commit SHA, required only for publication'
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -67,12 +76,16 @@ jobs:
       publish: ${{ steps.release-info.outputs.publish }}
 
     steps:
-      - name: Require main for manual releases
-        if: github.event_name == 'workflow_dispatch'
+      - name: Validate explicit release request
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true
         shell: pwsh
+        env:
+          EXPECTED_COMMIT: ${{ inputs.expected_commit }}
         run: |
-          if ($env:GITHUB_REF -ne 'refs/heads/main') {
-            throw 'Stable releases must be dispatched from main.'
+          if ($env:GITHUB_REF -ne 'refs/heads/main' -or
+              $env:EXPECTED_COMMIT -cnotmatch '^[0-9a-f]{40}$' -or
+              $env:EXPECTED_COMMIT -cne $env:GITHUB_SHA) {
+            throw 'Publication requires main and its exact dispatch commit SHA.'
           }
 
       - name: Check out repository
@@ -93,15 +106,13 @@ jobs:
         id: release-info
         shell: pwsh
         env:
-          BEFORE: ${{ github.event.before }}
+          PUBLISH_REQUESTED: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release == true }}
         run: |
           $arguments = @('release-info', "--output=$env:GITHUB_OUTPUT")
-          if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
+          if ($env:PUBLISH_REQUESTED -eq 'true') {
             $arguments += '--dispatch'
-          } elseif ($env:GITHUB_EVENT_NAME -eq 'pull_request') {
+          } else {
             $arguments += '--no-publish'
-          } elseif ($env:BEFORE) {
-            $arguments += "--before=$env:BEFORE"
           }
           xmake @arguments
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -137,16 +148,45 @@ jobs:
           key: ${{ runner.os }}-shader-tests-${{ github.sha }}
           restore-keys: ${{ runner.os }}-shader-tests-
 
-      # Each suite already compiles on every core; cap concurrent suites at two.
-      - name: Compile stock and feature shaders
-        run: xmake test -g shaders -j 2
+      # Each suite already compiles on every core. Keep the three binaries and
+      # their tests serial; cold shader corpora can exceed ten minutes on CI.
+      - name: Compile runtime shaders
+        run: xmake test -j 1 "RuntimeShaderTests/*"
 
+      - name: Compile AE identity and AE/OG feature shaders
+        run: xmake test -j 1 "StockShaderIdentityTests/*"
+
+      - name: Compile OG identity shaders
+        run: xmake test -j 1 "StockShaderIdentityOGTests/*"
+
+      # Package the tested checkout for internal PRs, main pushes and manual runs.
       - name: Assemble package
-        if: steps.release-info.outputs.publish == 'true'
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         run: xmake package FO4CommunityShaders
 
+      - name: Verify candidate package and provenance
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        shell: pwsh
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          RELEASE_IDENTITY: ${{ steps.release-info.outputs.identity }}
+          PUBLISH_REQUESTED: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release == true }}
+        run: ./scripts/verify-candidate-package.ps1
+
+      - name: Upload candidate package
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v7
+        with:
+          name: f4srf-candidate-${{ github.sha }}
+          path: |
+            build/packages/*.zip
+            build/candidate-evidence/*
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Prepare package metadata
-        if: steps.release-info.outputs.publish == 'true'
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         id: package-metadata
         shell: pwsh
         run: |
@@ -158,18 +198,9 @@ jobs:
           "package-name=$packageName" |
             Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
-      - name: Upload release package
-        if: steps.release-info.outputs.publish == 'true'
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ steps.package-metadata.outputs.package-name }}-archive
-          path: build/packages/*.zip
-          if-no-files-found: error
-          retention-days: 14
-
   release:
     name: Publish release
-    if: needs.build.outputs.publish == 'true' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref == 'refs/heads/main' && needs.build.outputs.publish == 'true'
     needs: [lint, build]
     runs-on: ubuntu-latest
     permissions:
@@ -186,13 +217,38 @@ jobs:
           fetch-tags: true
           persist-credentials: false
 
-      - name: Download release package
+      - name: Download verified package and evidence
         uses: actions/download-artifact@v8
         with:
-          name: ${{ needs.build.outputs.package-name }}-archive
+          name: f4srf-candidate-${{ github.sha }}
           path: dist
 
-      - name: Publish verified archive and prune dev releases
+      - name: Recheck publication provenance and archive
+        shell: bash
+        env:
+          EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+          ASSET: ${{ needs.build.outputs.package-name }}.zip
+          TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && "$GITHUB_REF" == refs/heads/main ]]
+          [[ "$EXPECTED_COMMIT" == "$GITHUB_SHA" && "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]
+          metadata=dist/candidate-evidence/BUILD-METADATA.json
+          jq -e --arg sha "$GITHUB_SHA" --arg tree "$(git rev-parse 'HEAD^{tree}')" \
+            --arg run "$GITHUB_RUN_ID" --arg tag "$TAG" --arg asset "$ASSET" \
+            --arg repo "$GITHUB_REPOSITORY" \
+            '.source_commit == $sha and .source_tree == $tree and
+             .workflow_run_id == $run and .repository == $repo and
+             .workflow_event == "workflow_dispatch" and .publish_requested == true and
+             .build_identity == $tag and .archive == $asset' "$metadata"
+          [[ "$ASSET" == "FO4CommunityShaders-$TAG.zip" ]]
+          expected=$(jq -er '.archive_sha256' "$metadata")
+          [[ "$expected" =~ ^[0-9A-Fa-f]{64}$ ]]
+          actual=$(sha256sum "dist/packages/$ASSET" | cut -d ' ' -f 1)
+          [[ "${actual,,}" == "${expected,,}" ]]
+          mv -- "dist/packages/$ASSET" "dist/$ASSET"
+
+      - name: Publish verified stable archive
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}

@@ -67,11 +67,3 @@ else
     gh release create "$TAG" "dist/$ASSET" "${args[@]}"
 fi
 
-# Cleanup follows a successful publish or verified retry, never a failed upload.
-releases=$(gh api --paginate --slurp "repos/$GH_REPO/releases" | jq 'add')
-while IFS= read -r old_tag; do
-    gh release delete "$old_tag" --cleanup-tag -y
-done < <(jq -r --arg keep "$TAG" \
-    '.[] | select(.prerelease and (.draft | not)) |
-     select(.tag_name != $keep) |
-     .tag_name | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+-dev\\.[0-9]+$"))' <<< "$releases")
