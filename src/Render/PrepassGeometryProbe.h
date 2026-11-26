@@ -15,6 +15,7 @@ namespace cs::engine
 	namespace prepass_geometry_probe
 	{
 		void Configure() noexcept;
+		void ReportLaneActivation(bool a_attempted, bool a_hooksInstalled, bool a_classifierRegistered) noexcept;
 		void RecordLaneBake(
 			const RE::BSRenderPass* a_pass,
 			PrepassBakePath a_path,

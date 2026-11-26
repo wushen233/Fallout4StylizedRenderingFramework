@@ -219,6 +219,8 @@ namespace cs::engine
 		// Written only during Load, before rendering, so reads need no lock.
 		std::array<RegisteredClassifier, kPrepassLaneComponents> g_prepassClassifiers{};
 		bool g_prepassLaneActive = false;
+		bool g_prepassLaneHookAttempted = false;
+		bool g_prepassLaneHooksInstalled = false;
 		std::array<std::array<ClassifierCounts, kPrepassBakePaths>, kPrepassLaneComponents> g_classifierCounts;
 		std::atomic<std::uint64_t> g_laneBaked{ 0 };
 		std::atomic<std::uint64_t> g_laneUnavailable{ 0 };
@@ -469,12 +471,23 @@ namespace cs::engine
 			TryPatch(
 				"command-buffer builder lane",
 				[] { stl::detour_thunk<BuildCommandBufferHook>(RE::ID::BSShader::BuildCommandBuffer); });
+		g_prepassLaneHookAttempted = true;
+		g_prepassLaneHooksInstalled = installed;
 		auto& slot = g_prepassClassifiers[static_cast<std::size_t>(a_component)];
 		if (!installed || !a_classifier || slot.classify)
 			return false;
 		slot = { a_classifier, &a_owner };
 		g_prepassLaneActive = true;
 		return true;
+	}
+
+	PrepassLaneHookStatus GetPrepassLaneHookStatus() noexcept
+	{
+		return {
+			.attempted = g_prepassLaneHookAttempted,
+			.hooksInstalled = g_prepassLaneHooksInstalled,
+			.classifierRegistered = g_prepassLaneActive
+		};
 	}
 
 	PrepassLaneStats GetPrepassLaneStats() noexcept

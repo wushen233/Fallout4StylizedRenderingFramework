@@ -8,6 +8,7 @@
 #include "LODBlendingSettings.h"
 #include "LightLimitFixSettings.h"
 #include "PerformanceOverlaySettings.h"
+#include "Render/PrepassProbePolicy.h"
 #include "Render/TemporalRenderSettings.h"
 #include "RenderDocSettings.h"
 #include "ScreenSpaceGISettings.h"
@@ -25,18 +26,75 @@
 #include "World/WeatherVariableRegistry.h"
 
 #include "Check.h"
+#include <array>
+#include <atomic>
 #include <filesystem>
 #include <fstream>
 
 #include <iostream>
+#include <optional>
 #include <set>
 #include <sstream>
+#include <thread>
 
 namespace
 {
 
 	using namespace cs::settings;
 	using namespace cs::feature_config;
+	using namespace cs::engine::prepass_geometry_probe::policy;
+
+	void TestPrepassProbePolicy()
+	{
+		constexpr std::uint32_t faceBit = 1U << 31;
+		constexpr std::uint32_t skinTintBit = 1U << 18;
+		CHECK(IsTargetDescriptor(faceBit | skinTintBit, faceBit, skinTintBit));
+		CHECK(SelectDomain(faceBit | skinTintBit, faceBit, skinTintBit) == Domain::kFace);
+		CHECK(SelectDomain(skinTintBit, faceBit, skinTintBit) == Domain::kSkinTint);
+		CHECK(!SelectDomain(0, faceBit, skinTintBit));
+		CHECK(GetLimits(Domain::kFace, Path::kImmediate).ownerResolutions >
+			  GetLimits(Domain::kSkinTint, Path::kImmediate).ownerResolutions);
+
+		std::atomic<std::uint32_t> budget{ UINT32_MAX - 1 };
+		std::uint32_t ticket = 0;
+		CHECK(ReserveBounded(budget, UINT32_MAX, &ticket) && ticket == UINT32_MAX - 1);
+		CHECK(!ReserveBounded(budget, UINT32_MAX));
+		CHECK(budget.load(std::memory_order_relaxed) == UINT32_MAX);
+		std::atomic<std::uint32_t> commandCreates{ 0 };
+		for (std::uint32_t ordinal = 0; ordinal < 16; ++ordinal) {
+			std::uint32_t reservedOrdinal = UINT32_MAX;
+			CHECK(ReserveBounded(commandCreates, 16, &reservedOrdinal) && reservedOrdinal == ordinal);
+		}
+		CHECK(!ReserveBounded(commandCreates, 16));
+		CHECK(commandCreates.load(std::memory_order_relaxed) == 16);
+
+		FrameClaims claims;
+		CHECK(ClaimFrame(claims, Domain::kFace, Path::kImmediate, 0));
+		CHECK(!ClaimFrame(claims, Domain::kFace, Path::kImmediate, 0));
+		CHECK(ClaimFrame(claims, Domain::kFace, Path::kCommandBuffer, 0));
+		CHECK(ClaimFrame(claims, Domain::kSkinTint, Path::kImmediate, 0));
+
+		ActorSlots slots;
+		const auto playerSlot = slots.Claim(0x14, true);
+		CHECK(playerSlot.has_value() && *playerSlot == 0);
+		const auto firstNpc = slots.Claim(0x100, false);
+		CHECK(firstNpc.has_value());
+		CHECK(slots.Claim(0x100, false) == firstNpc);
+		CHECK(slots.Claim(0x101, false).has_value());
+		CHECK(!slots.Claim(0x102, false));
+
+		ActorSlots concurrentSlots;
+		constexpr std::size_t workerCount = 8;
+		std::array<std::optional<std::size_t>, workerCount> concurrentClaims{};
+		std::array<std::thread, workerCount> workers;
+		for (std::size_t i = 0; i < workers.size(); ++i) {
+			workers[i] = std::thread([&, i] { concurrentClaims[i] = concurrentSlots.Claim(0x200, false); });
+		}
+		for (auto& worker : workers)
+			worker.join();
+		for (const auto& claim : concurrentClaims)
+			CHECK(claim == concurrentClaims.front());
+	}
 
 	Registry BuildFullRegistry()
 	{
@@ -402,6 +460,7 @@ int main()
 	std::filesystem::create_directories(directory);
 	try {
 		const auto registry = BuildFullRegistry();
+		TestPrepassProbePolicy();
 		TestRegistry(registry);
 		TestDocument(registry, directory / "settings.toml");
 		TestInvalidDocument(registry, directory / "invalid.toml");

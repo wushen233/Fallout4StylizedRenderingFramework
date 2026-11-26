@@ -10,6 +10,7 @@
 #include "Render/FrameBoundary.h"
 #include "Render/FrameBuffer.h"
 #include "Render/FrameProfiler.h"
+#include "Render/PrepassGeometryProbe.h"
 #include "Render/ShaderCompileGate.h"
 #include "Render/ShaderInjection.h"
 #include "Render/ShaderSubclassHooks.h"
@@ -116,6 +117,9 @@ extern "C" DLLEXPORT bool F4SEAPI F4SEPlugin_Load(const F4SE::LoadInterface* a_f
 	auto& featureManager = cs::FeatureManager::Get();
 	featureManager.PrepareAll();
 	featureManager.ActivateAll();
+	const auto laneStatus = cs::engine::GetPrepassLaneHookStatus();
+	cs::engine::prepass_geometry_probe::ReportLaneActivation(
+		laneStatus.attempted, laneStatus.hooksInstalled, laneStatus.classifierRegistered);
 	cs::Menu::Get().Load();
 	cs::engine::InstallFrameBuffer();
 	if (!cs::render::RegisterCameraCutWatch())
