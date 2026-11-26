@@ -457,10 +457,7 @@ namespace cs
 					{ .fontRole = DMUI_FONT_ROLE_TITLE }),
 				"draw home title"))
 			return;
-		dmui::ui::TextWrapped("%s", localize::Text(
-			"Features ship disabled; "
-			"choose which features to load in Advanced, then restart. "
-			"Use Enabled on each loaded feature's page to toggle its effect live."));
+		dmui::ui::TextWrapped("%s", localize::Text("Features ship disabled; choose which features to load in Advanced, then restart. Use Enabled on each loaded feature's page to toggle its effect live."));
 
 		DrawWhatsNew(a_client);
 		DrawCompatibility(a_client);
@@ -724,8 +721,7 @@ namespace cs
 		}
 
 		if (const ui::Section section{ "section-load-on-startup", "Load on startup" }; section) {
-			dmui::ui::TextWrapped(
-				"%s", localize::Text("Changes require a restart."));
+			dmui::ui::TextWrapped("%s", localize::Text("Changes require a restart."));
 			if (!CheckHostResult(a_client, ui::DrawTable(a_client, "advanced-startup-loading", [&] {
 					auto features = FeatureManager::Get().GetRegisteredFeatures();
 					std::ranges::sort(
