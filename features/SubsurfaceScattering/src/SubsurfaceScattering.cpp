@@ -1,4 +1,5 @@
 #include "SubsurfaceScattering.h"
+#include "Menu/Localization.h"
 
 #include <DearModdingUI/Client.h>
 #include <algorithm>
@@ -388,7 +389,7 @@ namespace cs::features
 				value[3], defaults[3], settings::Range{ 0.01f, 10.0f }));
 		};
 		if (_unsupported)
-			dmui::ui::Text("%s", "Unavailable: this GPU lacks typed UAV loads for the main color format.");
+			dmui::ui::Text("%s", cs::localize::Text("Unavailable: this GPU lacks typed UAV loads for the main color format."));
 		if (const ui::Section section{ "sss-method", "Method" }; section) {
 			static const std::array modes{
 				dmui::ChoiceOption<int>{ sss::kSeparable, "Separable SSS", "separable" },

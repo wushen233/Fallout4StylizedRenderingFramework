@@ -1,4 +1,5 @@
 #include "Upscaling.h"
+#include "Menu/Localization.h"
 
 #include <array>
 #include <format>
@@ -130,7 +131,7 @@ namespace cs::features
 			methodOption(4, "fsr-4")
 		};
 		if (const ui::Section section{ "upscaling-super-resolution", "Super Resolution" }; section) {
-			dmui::ui::TextDisabled("DLSS and FSR require borderless windowed mode.");
+			dmui::ui::TextDisabled("%s", cs::localize::Text("DLSS and FSR require borderless windowed mode."));
 			field.Choice(&Settings::upscaleMethod, methods, { .label = "Method" });
 
 			const bool externalMethod =

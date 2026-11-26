@@ -1,4 +1,5 @@
 #include "Skylighting.h"
+#include "Menu/Localization.h"
 #include "Render/SharedDataLayout.h"
 #include "Render/SubstrateSlots.h"
 
@@ -1020,7 +1021,7 @@ namespace cs::features
 		const auto field = edit.Bind(_live);
 
 		if (const ui::Section section{ "skylighting-visibility", "Visibility" }; section) {
-			dmui::ui::Text("%s", "Minimum visibility values. Diffuse darkens objects. Specular removes the sky from reflections.");
+			dmui::ui::Text("%s", cs::localize::Text("Minimum visibility values. Diffuse darkens objects. Specular removes the sky from reflections."));
 			field(&Settings::MinDiffuseVisibility, { .format = "%.2f" });
 			field(&Settings::MinSpecularVisibility, { .format = "%.2f" });
 		}
@@ -1032,7 +1033,7 @@ namespace cs::features
 			if (dmui::ui::Button("Rebuild Skylighting"))
 				QueueReset(kResetRebuild);
 
-			ui::Tooltip("Changes below require rebuilding, a loading screen, or moving away from the current location to apply.");
+			ui::Tooltip(cs::localize::Text("Changes below require rebuilding, a loading screen, or moving away from the current location to apply."));
 
 			// Stored in radians; the slider edits degrees like upstream's SliderAngle.
 			field(&Settings::MaxZenith, { .format = "%.0f deg", .flags = dmui::ui::SliderFlags::kAlwaysClamp, .scale = kRadiansToDegrees });

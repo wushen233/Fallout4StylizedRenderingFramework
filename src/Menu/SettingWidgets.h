@@ -148,9 +148,16 @@ namespace cs::ui
 		std::span<const dmui::ChoiceOption<std::type_identity_t<T>>> a_options)
 	{
 		// Translate only the display label; keys, values and enabled states stay intact.
+		const auto& catalog = localize::Get();
+		if (catalog.ActiveCode() == "en" || a_options.empty()) {
+			const auto pick = dmui::DrawChoice<T>(a_id, a_current, a_options);
+			return pick.changed ? pick.selected : std::nullopt;
+		}
 		std::vector<dmui::ChoiceOption<T>> options(a_options.begin(), a_options.end());
-		for (auto& option : options)
-			option.label = localize::Translate(option.label);
+		for (auto& option : options) {
+			if (!option.label.empty())
+				option.label = catalog.Translate(option.label);
+		}
 		const auto pick = dmui::DrawChoice<T>(a_id, a_current, options, localize::Text("Unavailable"));
 		return pick.changed ? pick.selected : std::nullopt;
 	}

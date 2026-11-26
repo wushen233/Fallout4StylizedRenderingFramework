@@ -1,4 +1,5 @@
 #include "WeatherOverrideEditor.h"
+#include "Menu/Localization.h"
 
 #include "Feature.h"
 #include "Menu/Menu.h"
@@ -38,7 +39,7 @@ namespace cs::features::cs_editor
 			return std::visit([&](auto& a_v) -> ui::EditResult {
 				using T = std::remove_cvref_t<decltype(a_v)>;
 				if constexpr (std::same_as<T, std::string> || std::same_as<T, settings::Float2> || std::same_as<T, settings::StringList>) {
-					dmui::ui::TextDisabled("Not editable here");
+					dmui::ui::TextDisabled("%s", cs::localize::Text("Not editable here"));
 					return {};
 				} else if constexpr (std::same_as<T, settings::Float3> || std::same_as<T, settings::Color4>) {
 					return ui::EditControl(hidden.c_str(), spec, a_v, settings::Range<T>{});
@@ -66,11 +67,11 @@ namespace cs::features::cs_editor
 			return;
 		const auto key = engine::WeatherKey(a_weather);
 		if (key.empty()) {
-			dmui::ui::TextDisabled("No weather selected, or the weather has no source plugin.");
+			dmui::ui::TextDisabled("%s", cs::localize::Text("No weather selected, or the weather has no source plugin."));
 			return;
 		}
 		dmui::ui::Text("Editing: %s", engine::DescribeWeather(a_weather).c_str());
-		dmui::ui::TextDisabled("Overrides apply live and blend with the weather transition.");
+		dmui::ui::TextDisabled("%s", cs::localize::Text("Overrides apply live and blend with the weather transition."));
 		if (!_error.empty()) {
 			dmui::ui::TextColored(dmui::ui::GetThemeColor(&DMUI_ThemeColors::statusError), "%s", _error.c_str());
 		}

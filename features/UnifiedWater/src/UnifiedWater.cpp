@@ -1,4 +1,5 @@
 #include "UnifiedWater.h"
+#include "Menu/Localization.h"
 #include "Render/SharedDataLayout.h"
 
 #include "Log.h"
@@ -450,7 +451,7 @@ namespace cs::features
 	{
 		if (dmui::ui::Button("Regenerate Caches on Next Launch"))
 			_cache.ScheduleRegeneration();
-		dmui::ui::Text("%s", "Activation and shader ownership changes require a restart.");
+		dmui::ui::Text("%s", cs::localize::Text("Activation and shader ownership changes require a restart."));
 	}
 
 	bool UnifiedWater::IsOverlayActive() const
@@ -463,7 +464,7 @@ namespace cs::features
 	{
 		const auto progress = _cache.GetProgress();
 		if (progress.active) {
-			dmui::ui::Text("%s", "Generating Water Cache:");
+			dmui::ui::Text("%s", cs::localize::Text("Generating Water Cache:"));
 			const auto text = std::format("{}/{} ({:.1f}%)", progress.completed, progress.total,
 				progress.total ? 100.0f * progress.completed / progress.total : 0.0f);
 			dmui::ui::ProgressBar(progress.total ? static_cast<float>(progress.completed) / progress.total : 0.0f, {}, text.c_str());

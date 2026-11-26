@@ -1,4 +1,5 @@
 #include "Screenshot.h"
+#include "Menu/Localization.h"
 
 #include <DearModdingUI/Client.h>
 
@@ -351,7 +352,7 @@ namespace cs::features
 		const auto field = edit.Bind(_live);
 
 		if (const ui::Section section{ "screenshot-capture", "Capture" }; section) {
-			dmui::ui::TextWrapped("Print Screen captures with this feature; saving runs in the background.");
+			dmui::ui::TextWrapped("%s", cs::localize::Text("Print Screen captures with this feature; saving runs in the background."));
 			if (dmui::ui::Button("Take Screenshot Now"))
 				static_cast<void>(RequestCapture());
 			field(&Settings::captureWithoutInterface);
@@ -389,7 +390,7 @@ namespace cs::features
 				field(&Settings::hdrPngBitDepth, { .format = "%d-bit", .flags = dmui::ui::SliderFlags::kAlwaysClamp });
 				field(&Settings::fixDiscordHdr);
 			} else {
-				dmui::ui::TextDisabled("HDR PNG options appear while HDR output is on.");
+				dmui::ui::TextDisabled("%s", cs::localize::Text("HDR PNG options appear while HDR output is on."));
 			}
 		}
 	}

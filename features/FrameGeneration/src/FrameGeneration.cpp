@@ -1,4 +1,5 @@
 #include "FrameGeneration.h"
+#include "Menu/Localization.h"
 
 #include <algorithm>
 #include <array>
@@ -491,7 +492,7 @@ namespace cs::features
 			methodOption(3, "fsr-4")
 		};
 		if (const ui::Section section{ "frame-generation-method", "Frame Generation" }; section) {
-			dmui::ui::TextDisabled("Requires borderless windowed mode.");
+			dmui::ui::TextDisabled("%s", cs::localize::Text("Requires borderless windowed mode."));
 			field.Choice(&Settings::frameGenerationMethod, methods, { .label = "Method" });
 
 			if (_live.Draft().frameGenerationMethod ==
@@ -573,7 +574,7 @@ namespace cs::features
 					currentGeneration == 2 &&
 					generationOptions.front().value == 2 &&
 					generationOptions.front().enabled) {
-					dmui::ui::TextDisabled("Generation: 2x");
+					dmui::ui::TextDisabled("%s", cs::localize::Text("Generation: 2x"));
 				} else {
 					// One dropdown over the mode and the fixed multiplier.
 					auto generation = currentGeneration;
@@ -634,7 +635,7 @@ namespace cs::features
 						}
 						if (dlssCapabilities.vsyncEnabled) {
 							dmui::ui::TextDisabled(
-								"VSync is enabled; DLSS ignores the custom target.");
+								"%s", cs::localize::Text("VSync is enabled; DLSS ignores the custom target."));
 						}
 					}
 				}

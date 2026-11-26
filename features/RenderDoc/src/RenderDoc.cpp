@@ -1,4 +1,5 @@
 #include "RenderDoc.h"
+#include "Menu/Localization.h"
 
 #include <renderdoc_app.h>
 
@@ -671,7 +672,7 @@ namespace cs::features
 			field.Choice(&Settings::captureTarget, captureTargets, { .label = "Capture target" });
 			if (!CaptureTargetAvailable()) {
 				dmui::ui::TextDisabled(
-					"Selected capture target is unavailable.");
+					"%s", cs::localize::Text("Selected capture target is unavailable."));
 			}
 
 			field(&Settings::dllPath, { .label = "DLL path" });
@@ -700,10 +701,10 @@ namespace cs::features
 				TriggerCapture();
 			dmui::ui::EndDisabled();
 			dmui::ui::TextWrapped(kPerformanceWarning);
-			dmui::ui::TextWrapped("Upscaling and frame generation may be incompatible with captures.");
+			dmui::ui::TextWrapped("%s", cs::localize::Text("Upscaling and frame generation may be incompatible with captures."));
 
 			if (!_api)
-				dmui::ui::TextDisabled("Runtime load failed - install RenderDoc or fix the DLL path, then restart.");
+				dmui::ui::TextDisabled("%s", cs::localize::Text("Runtime load failed - install RenderDoc or fix the DLL path, then restart."));
 		}
 
 		if (const ui::Section section{ "renderdoc-captures", "Captures" }; section) {
@@ -732,7 +733,7 @@ namespace cs::features
 		dmui::ui::SameLine();
 		dmui::ui::TextDisabled("(%zu files)", files.size());
 		if (files.empty()) {
-			dmui::ui::TextDisabled("No capture files found.");
+			dmui::ui::TextDisabled("%s", cs::localize::Text("No capture files found."));
 			return;
 		}
 		// FO4: forwarded headers expose sort buttons instead of ImGui sort specs or double clicks.

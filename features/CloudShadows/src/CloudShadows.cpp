@@ -1,4 +1,5 @@
 #include "CloudShadows.h"
+#include "Menu/Localization.h"
 
 #include <DearModdingUI/Client.h>
 
@@ -550,7 +551,7 @@ namespace cs::features
 			rows = _legend;
 		}
 		if (rows.empty()) {
-			dmui::ui::Text("%s", "No cloud layers are loaded.");
+			dmui::ui::Text("%s", cs::localize::Text("No cloud layers are loaded."));
 			return;
 		}
 		dmui::ui::Text("%s", "Slot  Clouds.nif child | weather texture | alpha");
