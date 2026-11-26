@@ -89,35 +89,44 @@ namespace cs::engine::prepass_geometry_probe::policy
 		{
 			if (a_formID == 0)
 				return std::nullopt;
-			if (a_isPlayer)
-				return ClaimAt(0, a_formID);
 
-			const auto first = 1 + static_cast<std::size_t>(a_formID % 2);
-			for (std::size_t offset = 0; offset < 2; ++offset) {
-				const auto index = 1 + ((first - 1 + offset) % 2);
-				if (const auto claimed = ClaimAt(index, a_formID))
-					return claimed;
+			const auto first = static_cast<std::size_t>(a_formID % kActorSlotCount);
+			if (const auto existing = Find(a_formID, first))
+				return existing;
+
+			const bool reservedNonPlayer = !a_isPlayer && ReserveBounded(_nonPlayerCount, 2);
+			if (!a_isPlayer && !reservedNonPlayer)
+				return Find(a_formID, first);
+
+			for (std::size_t offset = 0; offset < kActorSlotCount; ++offset) {
+				const auto index = (first + offset) % kActorSlotCount;
+				auto expected = std::uint32_t{ 0 };
+				if (_formIDs[index].compare_exchange_strong(expected, a_formID, std::memory_order_relaxed))
+					return index;
+				if (expected == a_formID) {
+					if (reservedNonPlayer)
+						_nonPlayerCount.fetch_sub(1, std::memory_order_relaxed);
+					return index;
+				}
 			}
+			if (reservedNonPlayer)
+				_nonPlayerCount.fetch_sub(1, std::memory_order_relaxed);
 			return std::nullopt;
 		}
 
 	private:
-		[[nodiscard]] std::optional<std::size_t> ClaimAt(std::size_t a_index, std::uint32_t a_formID) noexcept
+		[[nodiscard]] std::optional<std::size_t> Find(std::uint32_t a_formID, std::size_t a_first) const noexcept
 		{
-			auto& slot = _formIDs[a_index];
-			auto current = slot.load(std::memory_order_relaxed);
-			if (current == a_formID)
-				return a_index;
-			if (current != 0)
-				return std::nullopt;
-			if (slot.compare_exchange_strong(current, a_formID, std::memory_order_relaxed))
-				return a_index;
-			if (current == a_formID)
-				return a_index;
+			for (std::size_t offset = 0; offset < kActorSlotCount; ++offset) {
+				const auto index = (a_first + offset) % kActorSlotCount;
+				if (_formIDs[index].load(std::memory_order_relaxed) == a_formID)
+					return index;
+			}
 			return std::nullopt;
 		}
 
 		std::array<std::atomic<std::uint32_t>, kActorSlotCount> _formIDs{};
+		std::atomic<std::uint32_t> _nonPlayerCount{ 0 };
 	};
 
 	struct FrameClaims

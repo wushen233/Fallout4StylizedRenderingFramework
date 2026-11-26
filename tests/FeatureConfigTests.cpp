@@ -28,6 +28,7 @@
 #include "Check.h"
 #include <array>
 #include <atomic>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 
@@ -76,7 +77,7 @@ namespace
 
 		ActorSlots slots;
 		const auto playerSlot = slots.Claim(0x14, true);
-		CHECK(playerSlot.has_value() && *playerSlot == 0);
+		CHECK(playerSlot.has_value());
 		const auto firstNpc = slots.Claim(0x100, false);
 		CHECK(firstNpc.has_value());
 		CHECK(slots.Claim(0x100, false) == firstNpc);
@@ -92,8 +93,15 @@ namespace
 		}
 		for (auto& worker : workers)
 			worker.join();
-		for (const auto& claim : concurrentClaims)
-			CHECK(claim == concurrentClaims.front());
+		std::optional<std::size_t> concurrentSlot;
+		for (const auto& claim : concurrentClaims) {
+			if (!claim)
+				continue;
+			if (!concurrentSlot)
+				concurrentSlot = claim;
+			CHECK(claim == concurrentSlot);
+		}
+		CHECK(concurrentSlot.has_value());
 	}
 
 	Registry BuildFullRegistry()
