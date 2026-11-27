@@ -591,7 +591,7 @@ struct PS_OUTPUT
 	float2 motionVec: SV_Target5;
 #		endif
 #	endif
-#	if defined(EXTENDED_MATERIALS)
+#	if defined(EXTENDED_MATERIALS) || defined(FACE_TRANSPORT_RGBA8)
 	// FO4: upstream shades parallax shadows forward; DFLight reads them from here.
 	float4 parallaxShadow: SV_Target6;
 #	endif
@@ -629,7 +629,7 @@ struct PS_OUTPUT
 #	else
 	PS_OUTPUT output;
 #	endif
-#	if defined(EXTENDED_MATERIALS)
+#	if defined(EXTENDED_MATERIALS) || defined(FACE_TRANSPORT_RGBA8)
 		float parallaxShadow = 1.0;
 #	endif
 #	if defined(TERRAIN_VARIATION_LOD) || defined(EMAT)
@@ -1690,13 +1690,18 @@ struct PS_OUTPUT
 		output.motionVec = (currNDC - prevNDC) * float2(-0.5, 0.5);
 #		endif
 #	endif
-#	if defined(EXTENDED_MATERIALS)
+#	if defined(EXTENDED_MATERIALS) || defined(FACE_TRANSPORT_RGBA8)
 	// Every draw writes, so surfaces drawn over parallax never keep its shadow.
 #		if BLEND
-		output.parallaxShadow = float4(parallaxShadow, 0, 0, output.albedo.w);
+		float4 transportPayload = float4(parallaxShadow, 0, 0, output.albedo.w);
 #		else
-		output.parallaxShadow = float4(parallaxShadow, 0, 0, 1);
+		float4 transportPayload = float4(parallaxShadow, 0, 0, 1);
 #		endif
+#		if defined(FACE_TRANSPORT_RGBA8) && FACE && !BLEND && !LANDSCAPE && !TESSELLATE_DISP_HEIGHT
+		// Synthetic diagnostic payload only; this is not SDF data or material-role proof.
+		transportPayload.gb = float2(0.5, 1.0);
+#		endif
+		output.parallaxShadow = transportPayload;
 #	endif
 #	if defined(SUBSURFACE_SCATTERING)
 	// Every draw writes, so surfaces drawn over skin never keep its profile.
@@ -1722,7 +1727,7 @@ struct PS_OUTPUT
 #		if PREPASS_MOTION_VECTOR
 			output.motionVec.w = terrainBlendFactor;
 #		endif
-#		if defined(EXTENDED_MATERIALS)
+#		if defined(EXTENDED_MATERIALS) || defined(FACE_TRANSPORT_RGBA8)
 			output.parallaxShadow.w = terrainBlendFactor;
 #		endif
 #		if defined(SUBSURFACE_SCATTERING)

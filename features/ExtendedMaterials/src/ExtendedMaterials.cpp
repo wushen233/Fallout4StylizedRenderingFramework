@@ -86,11 +86,11 @@ namespace cs::features
 
 	void ExtendedMaterials::Load()
 	{
-		if (!cs::engine::RegisterFeatureShaderBindings(*this, cs::engine::AttachPrepassExtraTargets)) {
+		if (!cs::engine::RegisterFeatureShaderBindings(*this, cs::engine::AttachParallaxFaceTransportTarget)) {
 			FailLoad("Extended Materials shader contribution registration failed.");
 			return;
 		}
-		if (!cs::engine::RegisterPrepassExtraTarget(*this, { .name = "ExtendedMaterials/ParallaxShadow", .rtvSlot = cs::render::kParallaxShadowTargetSlot, .format = DXGI_FORMAT_R8_UNORM, .clear = { 1, 1, 1, 1 }, .publishSlot = cs::render::kParallaxShadowSlot, .active = [this] { return ShadowsActive(); } })) {
+		if (!cs::engine::RegisterParallaxFaceTransportTarget(*this, [this] { return ShadowsActive(); }, false)) {
 			FailLoad("Extended Materials parallax shadows need the prepass target.");
 			return;
 		}
