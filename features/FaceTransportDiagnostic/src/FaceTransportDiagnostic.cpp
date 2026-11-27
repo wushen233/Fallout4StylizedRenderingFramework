@@ -41,7 +41,7 @@ namespace cs::features
 	void FaceTransportDiagnostic::Load()
 	{
 		const auto registration = engine::face_transport::GetRegistrationPlan(_current.EnableRGBA8Payload);
-		if (!registration.shaderBindings && !registration.sharedTargetContributor) {
+		if (!engine::face_transport::RequiresRegistration(registration)) {
 			// No routes are required while disabled; this is a completed no-op registration phase.
 			_registrationsReady.store(true, std::memory_order_release);
 			return;

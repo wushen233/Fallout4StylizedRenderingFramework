@@ -285,6 +285,8 @@ namespace cs
 
 	protected:
 		virtual std::string_view GetRegistrationFailureMessage() const { return "the shader contribution did not register"; }
+		// Some shader features are intentionally inert for a configuration and register no routes.
+		virtual bool RequiresShaderInjectionRoutes() const noexcept { return true; }
 		// Runs before route validation; the feature's own readiness checks.
 		virtual bool ValidateInjectionPrerequisites(std::string&) { return true; }
 		// Runs after route validation, once the routes exist.

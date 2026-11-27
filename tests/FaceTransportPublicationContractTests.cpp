@@ -10,11 +10,14 @@ int main()
 	using cs::engine::face_transport::GetRegistrationPlan;
 	using cs::engine::face_transport::PublicationGenerationMatches;
 	using cs::engine::face_transport::PublicationState;
+	using cs::engine::face_transport::RequiresRegistration;
 
 	const auto disabled = GetRegistrationPlan(false);
 	assert(!disabled.shaderBindings && !disabled.sharedTargetContributor);
+	assert(!RequiresRegistration(disabled));
 	const auto enabled = GetRegistrationPlan(true);
 	assert(enabled.shaderBindings && enabled.sharedTargetContributor);
+	assert(RequiresRegistration(enabled));
 	assert(CanPublish(true, true, true, true, true));
 	for (std::size_t failed = 0; failed < 5; ++failed) {
 		std::array<bool, 5> facts{ true, true, true, true, true };

@@ -3,6 +3,7 @@
 #include "FaceTransportDiagnosticSettings.h"
 #include "Feature.h"
 #include "FeatureCategories.h"
+#include "Render/FaceTransportPublicationContract.h"
 #include "Render/PrepassExtraTargets.h"
 #include "ShaderDefines.h"
 
@@ -30,6 +31,10 @@ namespace cs::features
 
 	private:
 		settings::LiveSettingsAccess* GetLiveSettings() override { return &_live; }
+		bool RequiresShaderInjectionRoutes() const noexcept override
+		{
+			return engine::face_transport::RequiresRegistration(engine::face_transport::GetRegistrationPlan(_current.EnableRGBA8Payload));
+		}
 		std::string_view GetRegistrationFailureMessage() const override { return "diagnostic shader contribution registration failed"; }
 		bool ValidateInjectionPrerequisites(std::string&) override;
 		void PublishTelemetrySnapshot(const engine::PrepassExtraTargetPublication& a_snapshot) noexcept;

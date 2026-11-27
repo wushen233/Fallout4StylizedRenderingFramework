@@ -15,6 +15,11 @@ namespace cs::engine::face_transport
 		return { .shaderBindings = a_configured, .sharedTargetContributor = a_configured };
 	}
 
+	constexpr bool RequiresRegistration(const RegistrationPlan& a_plan) noexcept
+	{
+		return a_plan.shaderBindings || a_plan.sharedTargetContributor;
+	}
+
 	constexpr bool PublicationGenerationMatches(std::uint64_t a_resourceGeneration, std::uint64_t a_publishedGeneration) noexcept
 	{
 		return a_resourceGeneration != 0 && a_resourceGeneration == a_publishedGeneration;
