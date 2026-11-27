@@ -1,5 +1,7 @@
 # FACE-TRANSPORT-02B — Implementation Report
 
+> Historical report for the pre-R1 candidate at `476fb0b54e7db9dde31fb67a885ee8c1cafb0098`. Its DLL hash and installation output are not the R1 candidate. R1 corrections, final build identity, and review artifacts are recorded in [FACE-TRANSPORT-02B-R1-REVIEW-FIXES.md](FACE-TRANSPORT-02B-R1-REVIEW-FIXES.md) and the generated `build/face-transport-review/r1/` bundle.
+
 ## Result
 
 **Candidate implementation and targeted offline validation: PASS. Runtime acceptance: NOT RUN.**
@@ -49,4 +51,4 @@ The shared target cannot claim exact final G/B validity: Terrain RT6 writes do n
 - Build: ReleaseDbg x64; xmake `3.1.1+HEAD.3ba37a0d4`; MSVC toolset directory `14.52.37025`
 - Dependency gitlinks exactly as pinned by the production baseline: CommonLibF4 `9c3e9bf7ae99394a9c41b087f66afa0356b9a09c`; community-shaders-shared `ac739f9aff1a222a644033cb937ab10b960a3986`; Streamline `a310480cec2ebe488e4989f9df6bffefdc34aba0`; DevBench `1d804c5241019ecc456a4c7d385109c90f56ce1f`. The earlier handoff note's `5408d22...` value does not match this branch's gitlink; no gitlink was changed.
 
-The candidate has not been installed in MO2 or the game. Runtime compatibility is not established by this OG-targeted build.
+The pre-R1 candidate was not installed in MO2 or the game. Runtime compatibility is not established by that OG-targeted build.

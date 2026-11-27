@@ -32,6 +32,7 @@ namespace cs::engine
 			{
 				Feature* owner = nullptr;
 				std::function<bool()> active;
+				PrepassExtraTargetPublicationCallback publication;
 			};
 
 			Feature* owner = nullptr;
@@ -46,10 +47,17 @@ namespace cs::engine
 			bool requestRGBA8 = false;
 			bool rgbaFallback = false;
 			bool writing = false;
-			bool sawRenderTargetBinding = false;
 			bool ready = false;
+			bool diagnosticActive = false;
+			bool bindingAttempted = false;
+			bool bindingConfirmed = false;
+			bool srvBindingConfirmed = false;
+			bool contextMatches = false;
 			bool published = false;
 			bool consumerEligible = false;
+			std::uint64_t beginResourceGeneration = 0;
+			std::uintptr_t prepassContextIdentity = 0;
+			face_transport::PublicationState publicationState;
 			PrepassExtraTargetPublication::Veto veto = PrepassExtraTargetPublication::Veto::kUnverifiedViewAndLightAssociation;
 		};
 
@@ -90,6 +98,8 @@ namespace cs::engine
 				++a_entry.resourceGeneration;
 				a_entry.published = false;
 				a_entry.consumerEligible = false;
+				if (a_entry.sharedParallax)
+					g_bindEpoch = UINT64_MAX;
 				return true;
 			} catch (const std::exception& e) {
 				CS_LOG_EVERY_MS(L, 2000, spdlog::level::warn, "Prepass target {} unavailable: {}", name, e.what());
@@ -107,6 +117,7 @@ namespace cs::engine
 					++a_entry.resourceGeneration;
 					a_entry.published = false;
 					a_entry.consumerEligible = false;
+					g_bindEpoch = UINT64_MAX;
 					return true;
 				} catch (...) {
 					CS_LOG_EVERY_MS(L, 2000, spdlog::level::warn, "Shared RT6 RGBA8 and R8 fallback allocations failed.");
@@ -115,27 +126,49 @@ namespace cs::engine
 			return false;
 		}
 
+		void PublishDiagnosticSnapshots();
+
 		void BeginPrepass()
 		{
+			const auto* graphics = GetGraphicsState();
+			const auto frameSerial = graphics ? graphics->frameCount : 0;
 			for (auto& entry : g_entries) {
 				entry.ready = false;
 				entry.published = false;
 				entry.consumerEligible = false;
 				entry.writing = false;
-				entry.sawRenderTargetBinding = false;
+				entry.diagnosticActive = false;
+				entry.bindingAttempted = false;
+				entry.bindingConfirmed = false;
+				entry.srvBindingConfirmed = false;
+				entry.contextMatches = false;
+				entry.prepassContextIdentity = 0;
+				entry.beginResourceGeneration = entry.resourceGeneration;
+				entry.frameSerial = frameSerial;
+				entry.publicationState.BeginFrame(frameSerial, entry.resourceGeneration, false, entry.rgbaFallback, false);
+				entry.veto = entry.sharedParallax && entry.requestRGBA8 ?
+				                 PrepassExtraTargetPublication::Veto::kResourceUnavailable :
+				                 PrepassExtraTargetPublication::Veto::kDiagnosticDisabled;
 			}
 			auto* context = GetImmediateContext();
-			if (!context)
+			if (!context) {
+				PublishDiagnosticSnapshots();
 				return;
+			}
+			for (auto& entry : g_entries) {
+				if (entry.sharedParallax)
+					entry.prepassContextIdentity = reinterpret_cast<std::uintptr_t>(context);
+			}
 			// The prepass renders into the target, so no stage may still sample it.
 			ID3D11ShaderResourceView* none = nullptr;
 			for (const auto& entry : g_entries) {
 				if (entry.target.publishSlot)
 					BindFrameShaderResources(context, ShaderStage::kPixel, *entry.target.publishSlot, 1, &none);
 			}
-			const auto* graphics = GetGraphicsState();
-			if (!graphics)
+			if (!graphics) {
+				PublishDiagnosticSnapshots();
 				return;
+			}
 			for (auto& entry : g_entries) {
 				bool active = false;
 				if (entry.sharedParallax) {
@@ -144,6 +177,7 @@ namespace cs::engine
 						if (!cs::render::RunRenderCallback(contributor.owner, "ParallaxFaceTransportTarget", [&] { contributorActive = contributor.active(); }))
 							continue;
 						active |= contributorActive;
+						entry.diagnosticActive |= contributorActive && static_cast<bool>(contributor.publication);
 					}
 				} else {
 					cs::render::RunRenderCallback(entry.owner, "PrepassExtraTarget", [&] { active = entry.target.active(); });
@@ -154,6 +188,45 @@ namespace cs::engine
 				entry.ready = true;
 				entry.writing = true;
 				entry.frameSerial = graphics->frameCount;
+				entry.beginResourceGeneration = entry.resourceGeneration;
+				if (entry.sharedParallax)
+					entry.publicationState.BeginFrame(entry.frameSerial, entry.resourceGeneration, true, entry.rgbaFallback, true);
+			}
+			for (auto& entry : g_entries) {
+				if (entry.sharedParallax && entry.requestRGBA8 && !entry.diagnosticActive)
+					entry.veto = PrepassExtraTargetPublication::Veto::kDiagnosticDisabled;
+			}
+			PublishDiagnosticSnapshots();
+		}
+
+		void PublishDiagnosticSnapshots()
+		{
+			for (auto& entry : g_entries) {
+				if (!entry.sharedParallax)
+					continue;
+				PrepassExtraTargetPublication snapshot{
+					.resourceGeneration = entry.resourceGeneration,
+					.publishedGeneration = entry.publicationState.publishedGeneration,
+					.publicationId = entry.publicationState.publicationId,
+					.frameSerial = entry.publicationState.frameSerial,
+					.requestedFormat = entry.requestRGBA8 ? DXGI_FORMAT_R8G8B8A8_UNORM : DXGI_FORMAT_R8_UNORM,
+					.actualFormat = entry.texture ? entry.texture->desc.Format : DXGI_FORMAT_UNKNOWN,
+					.resourceReady = entry.publicationState.resourceReady,
+					.bindingAttempted = entry.publicationState.bindingAttempted,
+					.bindingConfirmed = entry.publicationState.bindingConfirmed,
+					.srvBindingConfirmed = entry.publicationState.srvBindingConfirmed,
+					.published = entry.publicationState.published,
+					.consumerEligible = false,
+					.rgba8Fallback = entry.publicationState.rgba8Fallback,
+					.veto = entry.veto
+				};
+				for (const auto& contributor : entry.contributors) {
+					if (!contributor.publication)
+						continue;
+					cs::render::RunRenderCallback(contributor.owner, "FaceTransportPublicationTelemetry", [&] {
+						contributor.publication(snapshot);
+					});
+				}
 			}
 		}
 
@@ -193,7 +266,20 @@ namespace cs::engine
 			// Only an engine output commit or plugin work can unbind a target.
 			const auto epoch = GetFrameBindingEpoch();
 			const auto count = ReadyRenderTargetCount();
-			if (count == 0 || epoch == g_bindEpoch)
+			if (count == 0)
+				return;
+			for (auto& entry : g_entries) {
+				if (!entry.sharedParallax || !entry.diagnosticActive || !entry.ready || entry.target.rtvSlot >= count)
+					continue;
+				entry.bindingAttempted = true;
+				entry.contextMatches = a_context && reinterpret_cast<std::uintptr_t>(a_context) == entry.prepassContextIdentity;
+				entry.publicationState.MarkBindingAttempted(entry.contextMatches);
+				if (!entry.contextMatches)
+					entry.veto = PrepassExtraTargetPublication::Veto::kContextMismatch;
+			}
+			// FrameBindingEpoch is thread-local while this legacy dedupe cache is global.
+			// Confirm the actual RTV at publication; resource recreation invalidates the cache.
+			if (epoch == g_bindEpoch)
 				return;
 			g_bindEpoch = epoch;
 			// FO4: extra slots follow the engine's six G-buffer targets, left as bound.
@@ -203,18 +289,38 @@ namespace cs::engine
 				a_slot = rtv;
 				return changed;
 			});
-			for (auto& entry : g_entries) {
-				if (entry.ready && entry.target.rtvSlot < count)
-					entry.sawRenderTargetBinding = true;
-			}
 		}
 
 		void PublishTargets()
 		{
 			auto* context = GetImmediateContext();
 			const auto count = ReadyRenderTargetCount();
-			if (!context || count == 0)
+			if (!context || count == 0) {
+				for (auto& entry : g_entries) {
+					if (entry.sharedParallax && entry.diagnosticActive)
+						entry.veto = context ? PrepassExtraTargetPublication::Veto::kResourceUnavailable : PrepassExtraTargetPublication::Veto::kContextMismatch;
+				}
+				PublishDiagnosticSnapshots();
 				return;
+			}
+			// Confirm the shared diagnostic RTV on this immediate context before unbinding it.
+			for (auto& entry : g_entries) {
+				if (!entry.sharedParallax || !entry.diagnosticActive || !entry.ready || entry.target.rtvSlot >= count)
+					continue;
+				entry.contextMatches = reinterpret_cast<std::uintptr_t>(context) == entry.prepassContextIdentity;
+				entry.publicationState.contextMatches = entry.contextMatches;
+				if (!entry.contextMatches || !entry.bindingAttempted || !entry.texture)
+					continue;
+				std::array<ID3D11RenderTargetView*, kMaxRenderTargets> outputs{};
+				winrt::com_ptr<ID3D11DepthStencilView> depth;
+				context->OMGetRenderTargets(entry.target.rtvSlot + 1, outputs.data(), depth.put());
+				entry.bindingConfirmed = outputs[entry.target.rtvSlot] == entry.texture->rtv.get();
+				entry.publicationState.MarkBindingConfirmed(entry.bindingConfirmed);
+				for (auto* output : outputs) {
+					if (output)
+						output->Release();
+				}
+			}
 			RebindReadyTargets(context, count, [](const Entry& a_entry, ID3D11RenderTargetView*& a_slot) {
 				const bool changed = a_slot == a_entry.texture->rtv.get();
 				if (changed)
@@ -228,44 +334,74 @@ namespace cs::engine
 				BindFrameShaderResources(context, ShaderStage::kPixel, *entry.target.publishSlot, 1, &srv);
 			}
 			for (auto& entry : g_entries) {
-				if (!entry.ready || !entry.writing || !entry.sawRenderTargetBinding || !entry.texture || entry.device != GetDevice())
+				if (!entry.sharedParallax || !entry.diagnosticActive)
 					continue;
+				const auto setVeto = [&entry](PrepassExtraTargetPublication::Veto a_veto) { entry.veto = a_veto; };
+				if (!entry.ready || !entry.writing || !entry.texture || entry.device != GetDevice()) {
+					setVeto(PrepassExtraTargetPublication::Veto::kResourceUnavailable);
+					continue;
+				}
+				if (!entry.contextMatches) {
+					setVeto(PrepassExtraTargetPublication::Veto::kContextMismatch);
+					continue;
+				}
+				if (!face_transport::PublicationGenerationMatches(entry.beginResourceGeneration, entry.resourceGeneration)) {
+					setVeto(PrepassExtraTargetPublication::Veto::kGenerationMismatch);
+					continue;
+				}
+				if (!entry.bindingAttempted) {
+					setVeto(PrepassExtraTargetPublication::Veto::kBindingNotAttempted);
+					continue;
+				}
+				if (!entry.bindingConfirmed) {
+					setVeto(PrepassExtraTargetPublication::Veto::kBindingNotConfirmed);
+					continue;
+				}
 				D3D11_TEXTURE2D_DESC actual{};
 				entry.texture->resource->GetDesc(&actual);
 				if (actual.Width != entry.texture->desc.Width || actual.Height != entry.texture->desc.Height ||
-					actual.Format != entry.target.format || actual.Format == DXGI_FORMAT_UNKNOWN)
+					actual.Format != entry.target.format || actual.Format == DXGI_FORMAT_UNKNOWN) {
+					setVeto(PrepassExtraTargetPublication::Veto::kPublicationFailed);
 					continue;
-				bool bindingsValid = true;
+				}
+				bool srvBound = true;
 				if (entry.target.publishSlot) {
 					ID3D11ShaderResourceView* bound = nullptr;
 					GetStageBindings(context, ShaderStage::kPixel, *entry.target.publishSlot, 1, &bound);
-					bindingsValid = bound == entry.texture->srv.get();
+					srvBound = bound == entry.texture->srv.get();
 					if (bound)
 						bound->Release();
 				}
 				std::array<ID3D11RenderTargetView*, kMaxRenderTargets> outputs{};
 				winrt::com_ptr<ID3D11DepthStencilView> depth;
 				context->OMGetRenderTargets(entry.target.rtvSlot + 1, outputs.data(), depth.put());
-				bindingsValid &= outputs[entry.target.rtvSlot] != entry.texture->rtv.get();
+				const bool rtvUnbound = outputs[entry.target.rtvSlot] != entry.texture->rtv.get();
 				for (auto* output : outputs) {
 					if (output)
 						output->Release();
 				}
-				if (!face_transport::CanPublish(entry.writing, entry.sawRenderTargetBinding,
+				entry.srvBindingConfirmed = srvBound;
+				entry.publicationState.srvBindingConfirmed = srvBound;
+				if (!face_transport::CanPublish(entry.writing, entry.bindingAttempted,
 						actual.Width == entry.texture->desc.Width && actual.Height == entry.texture->desc.Height && actual.Format == entry.target.format && actual.Format != DXGI_FORMAT_UNKNOWN,
-						bindingsValid, outputs[entry.target.rtvSlot] != entry.texture->rtv.get()) ||
-					entry.resourceGeneration == (std::numeric_limits<std::uint64_t>::max)() ||
-					entry.publicationId == (std::numeric_limits<std::uint64_t>::max)())
+						srvBound, rtvUnbound, entry.contextMatches, entry.bindingAttempted, entry.bindingConfirmed) ||
+					!srvBound || !rtvUnbound || entry.resourceGeneration != entry.beginResourceGeneration ||
+					entry.publicationId == (std::numeric_limits<std::uint64_t>::max)()) {
+					setVeto(PrepassExtraTargetPublication::Veto::kPublicationFailed);
 					continue;
+				}
 				entry.published = true;
 				entry.writing = false;
 				++entry.publicationId;
+				entry.publicationState.publicationId = entry.publicationId;
+				entry.publicationState.MarkPublished();
 				// View identity, unsupported writers and light snapshot association are not established here.
 				entry.consumerEligible = face_transport::CanConsume(entry.published, false, false, false, false, false);
-				entry.veto = entry.sharedParallax && entry.requestRGBA8 && actual.Format != DXGI_FORMAT_R8G8B8A8_UNORM ?
+				entry.veto = entry.requestRGBA8 && actual.Format != DXGI_FORMAT_R8G8B8A8_UNORM ?
 				                 PrepassExtraTargetPublication::Veto::kDiagnosticFormatUnavailable :
 				                 PrepassExtraTargetPublication::Veto::kUnverifiedViewAndLightAssociation;
 			}
+			PublishDiagnosticSnapshots();
 		}
 	}
 
@@ -288,7 +424,8 @@ namespace cs::engine
 	}
 
 	std::optional<PrepassExtraTargetId> RegisterParallaxFaceTransportTarget(
-		Feature& a_owner, std::function<bool()> a_active, bool a_requestRGBA8)
+		Feature& a_owner, std::function<bool()> a_active, bool a_requestRGBA8,
+		PrepassExtraTargetPublicationCallback a_publication)
 	{
 		if (!RenderHookRegistrationAllowed("RegisterParallaxFaceTransportTarget") || !a_active)
 			return std::nullopt;
@@ -307,7 +444,7 @@ namespace cs::engine
 			found = std::prev(g_entries.end());
 		}
 		found->requestRGBA8 |= a_requestRGBA8;
-		found->contributors.push_back({ .owner = &a_owner, .active = std::move(a_active) });
+		found->contributors.push_back({ .owner = &a_owner, .active = std::move(a_active), .publication = std::move(a_publication) });
 		return static_cast<PrepassExtraTargetId>(std::distance(g_entries.begin(), found));
 	}
 
@@ -331,18 +468,4 @@ namespace cs::engine
 		return entry.ready ? entry.texture->srv.get() : nullptr;
 	}
 
-	PrepassExtraTargetPublication GetPrepassExtraTargetPublication(PrepassExtraTargetId a_id) noexcept
-	{
-		if (a_id >= g_entries.size())
-			return {};
-		const auto& entry = g_entries[a_id];
-		return { .srv = entry.published && entry.texture ? entry.texture->srv.get() : nullptr,
-			.resourceGeneration = entry.resourceGeneration,
-			.publicationId = entry.publicationId,
-			.frameSerial = entry.frameSerial,
-			.format = entry.target.format,
-			.published = entry.published,
-			.consumerEligible = entry.consumerEligible,
-			.veto = entry.veto };
-	}
 }
