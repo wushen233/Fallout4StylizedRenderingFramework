@@ -1,8 +1,6 @@
 #ifndef FO4_FACE_SDF_PREPASS
 #define FO4_FACE_SDF_PREPASS
 
-#include "FO4/LinearSampler.hlsli"
-
 #if defined(BSDFPREPASS_VS_SOURCE) && defined(FACE_SDF) && FACE && SKINNED && !BLEND && !TESSELLATE_DISP_HEIGHT && !defined(FO4_TERRAIN_BLENDING)
 cbuffer FaceSdfProfile : register(b8)
 {
@@ -15,6 +13,8 @@ cbuffer FaceSdfProfile : register(b8)
 #endif
 
 #if defined(BSDFPREPASS_PS_SOURCE) && defined(FACE_SDF) && FACE && SKINNED && !BLEND && !TESSELLATE_DISP_HEIGHT && !defined(FO4_TERRAIN_BLENDING)
+SamplerState FaceSdfSampler : register(s6);
+
 cbuffer FaceSdfProfile : register(b8)
 {
 	float4 FaceSdfForward;
@@ -56,7 +56,7 @@ float EvaluateFaceSdf(float2 uv, float3 forwardView, float3 rightView, float3 up
 	const float lightLength = dot(sunDirectionView, sunDirectionView);
 	if (!isfinite(lightLength) || lightLength < 1.0e-8)
 		return 1.0;
-	const float2 sdf = FaceSdfTexture.Sample(LinearSampler, uv * FaceSdfUvScaleBias.zw + FaceSdfUvScaleBias.xy);
+	const float2 sdf = FaceSdfTexture.Sample(FaceSdfSampler, uv * FaceSdfUvScaleBias.zw + FaceSdfUvScaleBias.xy);
 	if (any(!isfinite(sdf)))
 		return 1.0;
 	const float signedDistance = dot(sunDirectionView * rsqrt(lightLength), rightView) >= 0.0 ? sdf.x : sdf.y;

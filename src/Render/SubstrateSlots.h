@@ -80,6 +80,8 @@ namespace cs::render
 	inline constexpr SlotBlock kForwardDrawSlot{ SlotKind::kConstantBuffer, kSlotPixel, false, 8, { "PerShader" } };
 	// Engine owns s0-s15; ShaderInjection binds this per draw, never per frame.
 	inline constexpr SlotBlock kLinearClampSamplerSlot{ SlotKind::kSampler, kSlotPixel, false, 13, { "LinearSampler" } };
+	// Face SDF uses a separate per-draw slot to avoid collisions with native s13 samplers.
+	inline constexpr SlotBlock kFaceSdfSamplerSlot{ SlotKind::kSampler, kSlotPixel, false, 6, { "FaceSdfSampler" } };
 	// Stock Sky reads the world depth at the canonical slot under its own name.
 	inline constexpr SlotBlock kSkyDepthSlot{ SlotKind::kTexture, kSlotPixel, true, 17, { "TexDepthSampler" } };
 
@@ -147,7 +149,7 @@ namespace cs::render
 	// Every named run; ValidateSubstrateSlots checks reflected names against it.
 	inline constexpr std::array kSlotTable{
 		&kSubstrateBuffers, &kCanonicalDepthSlot, &kFullscreenDebugTextureSlot, &kForwardDrawSlot,
-		&kLinearClampSamplerSlot, &kSkyDepthSlot, &kCloudShadowsSlot, &kCloudLayerCubeSlot,
+		&kLinearClampSamplerSlot, &kFaceSdfSamplerSlot, &kSkyDepthSlot, &kCloudShadowsSlot, &kCloudLayerCubeSlot,
 		&kCloudOverlayConstantsSlot, &kDynamicCubemapsSlot, &kDynamicCubemapsCompositionSlot,
 		&kParallaxShadowSlot, &kFaceSdfProfileTextureSlot, &kFaceSdfProfileConstantsSlot, &kFaceSdfConsumerConstantsSlot,
 		&kLlfStrictSlot, &kLlfRasterSlot, &kLlfForwardSlot, &kLlfLocalShadowSlot,

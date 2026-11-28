@@ -461,7 +461,7 @@ namespace cs::features
 			auto* texture = eligible ? t_selection.texture.get() : nullptr;
 			engine::BindInjectionShaderResources(a_context, render::kFaceSdfProfileTextureSlot.first, 1, &texture);
 			auto* sampler = render::GetLinearClampSampler();
-			engine::BindInjectionSamplers(a_context, render::kLinearClampSamplerSlot.first, 1, &sampler);
+			engine::BindInjectionSamplers(a_context, render::kFaceSdfSamplerSlot.first, 1, &sampler);
 		}
 	}
 
