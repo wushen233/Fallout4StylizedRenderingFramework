@@ -61,6 +61,8 @@ namespace
 			std::pair{ "TerrainVariation", MakeSchemaView(terrain_variation::kSchema) },
 			std::pair{ "TerrainBlending", SchemaView{} },
 			std::pair{ "ExtendedMaterials", MakeSchemaView(extended_materials::kSchema) },
+			std::pair{ "FaceTransportDiagnostic", SchemaView{} },
+			std::pair{ "FaceSDF", SchemaView{} },
 			std::pair{ "MotionVectorFixes", SchemaView{} },
 			std::pair{ "Upscaling", MakeSchemaView(cs::render::temporal::kSchema) },
 			std::pair{ "FrameGeneration", MakeSchemaView(frame_generation::kSchema) },
@@ -74,11 +76,11 @@ namespace
 		CHECK(features.size() == kAllFeatureKeys.size());
 		// Mirrors Feature::SupportsEnableToggle and DefaultEnabled.
 		const auto enabledDefault = [](std::string_view a_key) -> std::optional<bool> {
-			for (const auto optOut : { "LightLimitFix", "Upscaling", "FrameGeneration", "HDRDisplay", "PerformanceOverlay", "RenderDoc", "Screenshot", "CSEditor" }) {
+			for (const auto optOut : { "FaceTransportDiagnostic", "LightLimitFix", "Upscaling", "FrameGeneration", "HDRDisplay", "PerformanceOverlay", "RenderDoc", "Screenshot", "CSEditor" }) {
 				if (a_key == optOut)
 					return std::nullopt;
 			}
-			return a_key != "ImageBasedLighting";
+			return a_key != "ImageBasedLighting" && a_key != "FaceSDF";
 		};
 		for (const auto& [key, schema] : features) {
 			AddFeatureSections(
