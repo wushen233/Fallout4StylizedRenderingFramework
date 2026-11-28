@@ -1720,8 +1720,7 @@ struct PS_OUTPUT
 			input.faceSdfRightView,
 			input.faceSdfUpView,
 			sunDirectionView);
-		if (FaceSdfParameters.x >= 0.5 && isfinite(sdfFactor))
-		{
+		if (FaceSdfParameters.x >= 0.5 && isfinite(sdfFactor)) {
 			transportPayload.g = saturate(sdfFactor);
 			transportPayload.b = 1.0;
 		}
