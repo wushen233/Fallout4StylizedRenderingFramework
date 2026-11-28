@@ -6,7 +6,7 @@ Snapshot date: 2026-11-28
 
 Fallout 4 Stylized Rendering Framework (F4SRF) is an independent Community Shaders fork. It keeps the upstream rendering paths available and adds narrowly opted-in NPR material behavior. The production baseline remains `main` at `a0aaceaa64a63854c2d7637ff0cc4888d40e9e48`; PR #1 is merged. The local `main` worktree is stale at `6d768d1233d2471e8712685187f8931ed8c6d8d8` and is five commits behind `origin/main`; it was not changed.
 
-`feature/face-transport-diagnostic` at `2d694c05a6626b7bc223125d5ad2b1d1c8d56f5a` is the current integrated production candidate for the Face Transport producer and its gated diagnostic. It is three commits ahead of `origin/main` and based directly on the production baseline. It includes the reviewed diagnostic load correction from `b5ad648e3f5d7ec073e5cd77510260861b76210f` plus the follow-up `2d694c05a6626b7bc223125d5ad2b1d1c8d56f5a`. It does not contain Menu Localization, ARCH-01D, Native Biped Probe, Material Registry, or Face SDF consumer code.
+`feature/face-transport-diagnostic` at `2d694c05a6626b7bc223125d5ad2b1d1c8d56f5a` is the most complete **unmerged** production-source candidate for the Face Transport producer and its gated diagnostic. It is three commits ahead of `origin/main` and based directly on the production baseline. It includes the reviewed diagnostic load correction from `b5ad648e3f5d7ec073e5cd77510260861b76210f` plus the follow-up `2d694c05a6626b7bc223125d5ad2b1d1c8d56f5a`. It does not contain Menu Localization, ARCH-01D, Native Biped Probe, Material Registry, or Face SDF consumer code.
 
 There is no local or remote `feature/face-sdf-directional` branch. FACE-01A is paused. The actual Face SDF consumer remains fail-closed and is not implemented.
 
