@@ -80,6 +80,8 @@ namespace cs::render
 	inline constexpr SlotBlock kForwardDrawSlot{ SlotKind::kConstantBuffer, kSlotPixel, false, 8, { "PerShader" } };
 	// Engine owns s0-s15; ShaderInjection binds this per draw, never per frame.
 	inline constexpr SlotBlock kLinearClampSamplerSlot{ SlotKind::kSampler, kSlotPixel, false, 13, { "LinearSampler" } };
+	// Face SDF uses a separate per-draw slot to avoid collisions with native s13 samplers.
+	inline constexpr SlotBlock kFaceSdfSamplerSlot{ SlotKind::kSampler, kSlotPixel, false, 6, { "FaceSdfSampler" } };
 	// Stock Sky reads the world depth at the canonical slot under its own name.
 	inline constexpr SlotBlock kSkyDepthSlot{ SlotKind::kTexture, kSlotPixel, true, 17, { "TexDepthSampler" } };
 
@@ -94,6 +96,9 @@ namespace cs::render
 	inline constexpr SlotBlock kDynamicCubemapsCompositionSlot{ SlotKind::kTexture, kSlotPixel, true, 39,
 		{ "EnvTexture", "EnvReflectionsTexture", "SharpReflectionsTexture" } };
 	inline constexpr SlotBlock kParallaxShadowSlot{ SlotKind::kTexture, kSlotPixel, true, 66, { "ParallaxShadowTexture" } };
+	inline constexpr SlotBlock kFaceSdfProfileTextureSlot{ SlotKind::kTexture, kSlotPixel, true, 67, { "FaceSdfTexture" } };
+	inline constexpr SlotBlock kFaceSdfProfileConstantsSlot{ SlotKind::kConstantBuffer, kSlotVertex | kSlotPixel, true, 8, { "FaceSdfProfile" } };
+	inline constexpr SlotBlock kFaceSdfConsumerConstantsSlot{ SlotKind::kConstantBuffer, kSlotPixel, true, 8, { "FaceSdfConsumer" } };
 	inline constexpr SlotBlock kLlfStrictSlot{ SlotKind::kConstantBuffer, kSlotPixel, false, 3, { "StrictLightData" } };
 	inline constexpr SlotBlock kLlfRasterSlot{ SlotKind::kConstantBuffer, kSlotPixel, false, 11, { "LightLimitFixDraw" } };
 	inline constexpr SlotBlock kLlfForwardSlot{ SlotKind::kTexture, kSlotPixel, true, 34,
@@ -144,9 +149,10 @@ namespace cs::render
 	// Every named run; ValidateSubstrateSlots checks reflected names against it.
 	inline constexpr std::array kSlotTable{
 		&kSubstrateBuffers, &kCanonicalDepthSlot, &kFullscreenDebugTextureSlot, &kForwardDrawSlot,
-		&kLinearClampSamplerSlot, &kSkyDepthSlot, &kCloudShadowsSlot, &kCloudLayerCubeSlot,
+		&kLinearClampSamplerSlot, &kFaceSdfSamplerSlot, &kSkyDepthSlot, &kCloudShadowsSlot, &kCloudLayerCubeSlot,
 		&kCloudOverlayConstantsSlot, &kDynamicCubemapsSlot, &kDynamicCubemapsCompositionSlot,
-		&kParallaxShadowSlot, &kLlfStrictSlot, &kLlfRasterSlot, &kLlfForwardSlot, &kLlfLocalShadowSlot,
+		&kParallaxShadowSlot, &kFaceSdfProfileTextureSlot, &kFaceSdfProfileConstantsSlot, &kFaceSdfConsumerConstantsSlot,
+		&kLlfStrictSlot, &kLlfRasterSlot, &kLlfForwardSlot, &kLlfLocalShadowSlot,
 		&kSsgiCompositionSlot, &kSsgiSpecularSlot, &kSssConsumerSlot, &kScreenSpaceShadowsMaskSlot,
 		&kTerrainBlendingObjectDepthSlot, &kTerrainBlendingReplaySlot, &kVanillaPbrLiveLODSlot,
 		&kVanillaPbrAuthoredCubeSlot, &kVolumetricShadowsMapSlot, &kVolumetricShadowsLightsSlot,

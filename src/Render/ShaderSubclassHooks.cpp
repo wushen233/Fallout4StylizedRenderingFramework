@@ -217,6 +217,14 @@ namespace cs::engine
 
 		// Written only during Load, before rendering, so reads need no lock.
 		std::array<RegisteredClassifier, kPrepassLaneComponents> g_prepassClassifiers{};
+		struct ImmediateDrawObserver
+		{
+			PrepassImmediateDrawCallback callback = nullptr;
+			void* context = nullptr;
+			Feature* owner = nullptr;
+		};
+		std::array<ImmediateDrawObserver, 4> g_immediateDrawObservers{};
+		std::size_t g_immediateDrawObserverCount = 0;
 		bool g_prepassLaneActive = false;
 		std::array<std::array<ClassifierCounts, kPrepassBakePaths>, kPrepassLaneComponents> g_classifierCounts;
 		std::atomic<std::uint64_t> g_laneBaked{ 0 };
@@ -233,12 +241,16 @@ namespace cs::engine
 		struct PrepassLaneRequest
 		{
 			PrepassBakePath path;
+			RE::BSRenderPass* pass;
 			std::uint32_t descriptor;
 			std::array<float, kPrepassLaneComponents> lane;
 			std::int32_t offset;  // dword offset in the pixel cb2 constants; -1 when unresolved
 		};
 
 		thread_local PrepassLaneRequest* t_prepassLane = nullptr;
+		thread_local RE::BSRenderPass* t_immediatePrepassPass = nullptr;
+		std::once_flag g_prepassSetupHookOnce;
+		bool g_prepassSetupHookInstalled = false;
 
 		[[nodiscard]] std::int32_t PrepassLaneOffset(const RE::BSGraphics::PixelShader* a_pixel) noexcept
 		{
@@ -279,6 +291,7 @@ namespace cs::engine
 		{
 			PrepassLaneRequest request{
 				.path = a_path,
+				.pass = a_pass,
 				.descriptor = a_pass->passEnum,
 				.lane = {},
 				.offset = PrepassLaneOffset(FindPrepassPixelShader(a_shader, a_pass->passEnum))
@@ -328,12 +341,32 @@ namespace cs::engine
 				RE::BSShader* a_self,
 				RE::BSRenderPass* a_pass)
 			{
+				const ThreadLocalPointerScope passScope(t_immediatePrepassPass, a_pass);
+				const auto observe = [&](bool a_begin) {
+					for (std::size_t i = 0; i < g_immediateDrawObserverCount; ++i) {
+						const auto& observer = g_immediateDrawObservers[i];
+						if (observer.callback && observer.owner)
+							observer.callback(a_pass, observer.context, a_begin);
+					}
+				};
 				if (!g_prepassLaneActive || !a_pass || (a_pass->passEnum & kPrepassLandscapeBit) != 0) {
+					observe(true);
+					struct EndObservers
+					{
+						decltype(observe)& callback;
+						~EndObservers() { callback(false); }
+					} end{ observe };
 					func(a_self, a_pass);
 					return;
 				}
 				auto request = MakePrepassLaneRequest(a_self, a_pass, PrepassBakePath::kImmediate);
-				const ThreadLocalPointerScope scope(t_prepassLane, &request);
+				const ThreadLocalPointerScope laneScope(t_prepassLane, &request);
+				observe(true);
+				struct EndObservers
+				{
+					decltype(observe)& callback;
+					~EndObservers() { callback(false); }
+				} end{ observe };
 				func(a_self, a_pass);
 			}
 
@@ -433,6 +466,16 @@ namespace cs::engine
 			return false;
 		}
 
+		bool InstallPrepassSetupGeometryHook()
+		{
+			std::call_once(g_prepassSetupHookOnce, [] {
+				g_prepassSetupHookInstalled = TryPatch(
+					"BSDFPrePassShader SetupGeometry",
+					[] { stl::write_vfunc<RE::BSDFPrePassShader, PrepassSetupGeometryHook>(); });
+			});
+			return g_prepassSetupHookInstalled;
+		}
+
 	}
 
 	const RE::BSRenderPass* GetCurrentSkyPass() noexcept
@@ -443,9 +486,7 @@ namespace cs::engine
 	bool RegisterPrepassDrawClassifier(Feature& a_owner, PrepassLaneComponent a_component, PrepassDrawClassifier a_classifier)
 	{
 		static const bool installed =
-			TryPatch(
-				"BSDFPrePassShader SetupGeometry lane",
-				[] { stl::write_vfunc<RE::BSDFPrePassShader, PrepassSetupGeometryHook>(); }) &&
+			InstallPrepassSetupGeometryHook() &&
 			TryPatch(
 				"immediate pixel constants lane",
 				[] {
@@ -491,6 +532,26 @@ namespace cs::engine
 			.Field(std::format("{}_immediate_draws", a_flagged), immediate.flagged)
 			.Field("lanes_baked", lanes.baked)
 			.Field("lanes_unavailable", lanes.unavailable);
+	}
+
+	RE::BSRenderPass* GetCurrentImmediatePrepassPass() noexcept
+	{
+		return t_immediatePrepassPass;
+	}
+
+	bool RegisterPrepassImmediateDrawCallback(Feature& a_owner, PrepassImmediateDrawCallback a_callback, void* a_context) noexcept
+	{
+		if (!a_callback || g_immediateDrawObserverCount == g_immediateDrawObservers.size())
+			return false;
+		if (std::ranges::any_of(std::span(g_immediateDrawObservers).first(g_immediateDrawObserverCount), [&](const auto& observer) {
+				return observer.owner == &a_owner || observer.context == a_context;
+			}))
+			return false;
+		// The observer and lane classifier share one once-only SetupGeometry patch.
+		if (!InstallPrepassSetupGeometryHook())
+			return false;
+		g_immediateDrawObservers[g_immediateDrawObserverCount++] = { a_callback, a_context, &a_owner };
+		return true;
 	}
 
 	void InstallShaderSubclassHooks()

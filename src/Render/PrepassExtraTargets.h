@@ -10,6 +10,7 @@
 #include <dxgiformat.h>
 
 struct ID3D11ShaderResourceView;
+struct ID3D11DeviceContext;
 
 namespace cs
 {
@@ -63,6 +64,7 @@ namespace cs::engine
 		bool srvBindingConfirmed = false;
 		bool published = false;
 		bool consumerEligible = false;
+		bool viewIdentityConfirmed = false;
 		bool rgba8Fallback = false;
 		Veto veto = Veto::kDiagnosticDisabled;
 	};
@@ -72,6 +74,10 @@ namespace cs::engine
 		Feature& a_owner, std::function<bool()> a_active, bool a_requestRGBA8,
 		PrepassExtraTargetPublicationCallback a_publication = {});
 	void AttachParallaxFaceTransportTarget(ShaderReplacementRegistration& a_registration);
+	void AttachParallaxFaceTransportTargetWithCallback(ShaderReplacementRegistration& a_registration, std::function<void(ID3D11DeviceContext*)> a_afterBind);
+	void CaptureParallaxFaceTransportProducerView(ID3D11DeviceContext* a_context) noexcept;
+	[[nodiscard]] bool ValidateParallaxFaceTransportConsumerView(
+		ID3D11DeviceContext* a_context, std::uint64_t* a_resourceGeneration, std::uint64_t* a_publicationId) noexcept;
 	// Plugs the target bind into a feature's kDeferredPrepass registration.
 	void AttachPrepassExtraTargets(ShaderReplacementRegistration& a_registration);
 	// The target's SRV for a compute consumer; null unless written this frame.

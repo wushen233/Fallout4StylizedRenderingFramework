@@ -157,6 +157,7 @@ namespace cs::engine
 		ID3D11DepthStencilView* _depth = nullptr;
 		bool _targetsCaptured = false;
 	};
+	[[nodiscard]] ShaderStage GetActiveShaderInjectionStage() noexcept;
 	using ScopedPixelShaderInjectionBindings = ScopedShaderInjectionBindings;
 
 	using ShaderInjectionDefines = std::map<std::string, std::string, std::less<>>;

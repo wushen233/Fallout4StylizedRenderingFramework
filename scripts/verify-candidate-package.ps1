@@ -24,6 +24,7 @@ try {
     $prBase = $null
     $headTree = $null
     $sameTree = $null
+    $prBaseIntegration = $null
     $publishRequested = $env:PUBLISH_REQUESTED -eq 'true'
     switch ($env:GITHUB_EVENT_NAME) {
         'pull_request' {
@@ -35,8 +36,17 @@ try {
                 if ($sha -cnotmatch '^[0-9a-f]{40}$') { throw 'Invalid PR commit identity' }
             }
             $parents = (Read-Git rev-list --parents -n 1 HEAD).Trim() -split ' '
-            if ($parents.Count -ne 3 -or $parents[1] -cne $prBase -or $parents[2] -cne $prHead) {
+            if ($parents.Count -ne 3 -or $parents[2] -cne $prHead) {
                 throw 'Checkout is not the expected PR merge commit'
+            }
+            if ($parents[1] -ceq $prBase) {
+                $prBaseIntegration = 'direct'
+            } else {
+                $stackParents = (Read-Git rev-list --parents -n 1 $parents[1]).Trim() -split ' '
+                if ($stackParents.Count -ne 3 -or $stackParents[2] -cne $prBase) {
+                    throw 'Checkout is not the expected PR merge commit'
+                }
+                $prBaseIntegration = 'stacked'
             }
             $headTree = (Read-Git rev-parse "$prHead^{tree}").Trim()
             $sameTree = $sourceTree -ceq $headTree
@@ -124,6 +134,7 @@ try {
         source_tree = $sourceTree
         pr_head = $prHead
         pr_base = $prBase
+        pr_base_integration = $prBaseIntegration
         pr_head_tree = $headTree
         source_tree_equals_pr_head = $sameTree
         build_identity = $env:RELEASE_IDENTITY

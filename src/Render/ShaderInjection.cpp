@@ -335,6 +335,11 @@ namespace cs::engine
 		finish();
 	}
 
+	ShaderStage GetActiveShaderInjectionStage() noexcept
+	{
+		return t_bindings ? t_bindings->GetStage() : ShaderStage::kPixel;
+	}
+
 	void ScopedShaderInjectionBindings::Capture(
 		ID3D11DeviceContext* a_context, ShaderResourceType a_type, std::uint32_t a_slot, bool a_frameOwned) noexcept
 	{
@@ -2010,6 +2015,10 @@ namespace cs::engine
 			ID3D11DeviceContext* a_context,
 			util::ShaderSamplerUse a_samplers) noexcept
 		{
+			{
+				ScopedShaderInjectionBindings bindings{ ShaderStage::kVertex };
+				DispatchPublishedTarget(a_target, ShaderStage::kVertex, a_context);
+			}
 			const auto previousMask = std::exchange(t_samplerMask, a_samplers.declared);
 			if (a_samplers.hostLinearClamp) {
 				auto* sampler = render::GetLinearClampSampler();
