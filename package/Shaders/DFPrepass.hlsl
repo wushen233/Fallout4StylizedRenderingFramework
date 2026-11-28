@@ -2962,14 +2962,14 @@ VertexOutput main(VertexInput input)
 		worldNormal);
 	output.tangentRow2 = ProjectBasis(WorldToView_row2.xyz, worldTangent, worldBinormal,
 		worldNormal);
-#		if defined(FACE_SDF) && FACE && !BLEND && !TESSELLATE_DISP_HEIGHT && !defined(FO4_TERRAIN_BLENDING)
-		float3 faceForwardWorld = SkinDirection(FaceSdfForward.xyz, skin);
-		float3 faceRightWorld = SkinDirection(FaceSdfRight.xyz, skin);
-		float3 faceUpWorld = SkinDirection(FaceSdfUp.xyz, skin);
-		output.faceSdfForwardView = ProjectRows(WorldToView_row0.xyz, WorldToView_row1.xyz, WorldToView_row2.xyz, faceForwardWorld);
-		output.faceSdfRightView = ProjectRows(WorldToView_row0.xyz, WorldToView_row1.xyz, WorldToView_row2.xyz, faceRightWorld);
-		output.faceSdfUpView = ProjectRows(WorldToView_row0.xyz, WorldToView_row1.xyz, WorldToView_row2.xyz, faceUpWorld);
-#		endif
+#			if defined(FACE_SDF) && FACE && !BLEND && !TESSELLATE_DISP_HEIGHT && !defined(FO4_TERRAIN_BLENDING)
+	float3 faceForwardWorld = SkinDirection(FaceSdfForward.xyz, skin);
+	float3 faceRightWorld = SkinDirection(FaceSdfRight.xyz, skin);
+	float3 faceUpWorld = SkinDirection(FaceSdfUp.xyz, skin);
+	output.faceSdfForwardView = ProjectRows(WorldToView_row0.xyz, WorldToView_row1.xyz, WorldToView_row2.xyz, faceForwardWorld);
+	output.faceSdfRightView = ProjectRows(WorldToView_row0.xyz, WorldToView_row1.xyz, WorldToView_row2.xyz, faceRightWorld);
+	output.faceSdfUpView = ProjectRows(WorldToView_row0.xyz, WorldToView_row1.xyz, WorldToView_row2.xyz, faceUpWorld);
+#			endif
 #		else
 	float3 viewRow0 = ConcatenateRow(WorldToView_row0, column0, column1, column2);
 	float3 viewRow1 = ConcatenateRow(WorldToView_row1, column0, column1, column2);
