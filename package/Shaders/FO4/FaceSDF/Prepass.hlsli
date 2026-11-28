@@ -24,7 +24,7 @@ cbuffer FaceSdfProfile : register(b8)
 	float4 FaceSdfParameters;
 };
 
-Texture2D<float2> FaceSdfTexture : register(t9);
+Texture2D<float2> FaceSdfTexture : register(t67);
 
 float EvaluateFaceSdf(float2 uv, float3 forwardView, float3 rightView, float3 upView, float3 sunDirectionView)
 {
