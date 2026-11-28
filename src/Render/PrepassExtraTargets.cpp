@@ -8,6 +8,7 @@
 #include "Render/RenderHooks.h"
 #include "Render/RuntimeCallback.h"
 #include "Render/ShaderInjection.h"
+#include "Render/SharedData.h"
 #include "Render/SubstrateSlots.h"
 #include "Utils/CSBuffer.h"
 
@@ -57,6 +58,11 @@ namespace cs::engine
 			bool consumerEligible = false;
 			std::uint64_t beginResourceGeneration = 0;
 			std::uintptr_t prepassContextIdentity = 0;
+			winrt::com_ptr<ID3D11Buffer> producerSharedData;
+			bool producerViewAmbiguous = false;
+			render::DirectionalLightSnapshot producerLight{};
+			bool producerLightSnapshotValid = false;
+			bool producerLightSnapshotAmbiguous = false;
 			face_transport::PublicationState publicationState;
 			PrepassExtraTargetPublication::Veto veto = PrepassExtraTargetPublication::Veto::kUnverifiedViewAndLightAssociation;
 		};
@@ -68,7 +74,6 @@ namespace cs::engine
 		// Entries are added only during Load, before rendering.
 		std::vector<Entry> g_entries;
 		bool g_hooked = false;
-		std::uint64_t g_bindEpoch = UINT64_MAX;
 
 		bool EnsureTexture(Entry& a_entry, const RE::BSGraphics::State& a_graphics)
 		{
@@ -98,8 +103,6 @@ namespace cs::engine
 				++a_entry.resourceGeneration;
 				a_entry.published = false;
 				a_entry.consumerEligible = false;
-				if (a_entry.sharedParallax)
-					g_bindEpoch = UINT64_MAX;
 				return true;
 			} catch (const std::exception& e) {
 				CS_LOG_EVERY_MS(L, 2000, spdlog::level::warn, "Prepass target {} unavailable: {}", name, e.what());
@@ -117,7 +120,6 @@ namespace cs::engine
 					++a_entry.resourceGeneration;
 					a_entry.published = false;
 					a_entry.consumerEligible = false;
-					g_bindEpoch = UINT64_MAX;
 					return true;
 				} catch (...) {
 					CS_LOG_EVERY_MS(L, 2000, spdlog::level::warn, "Shared RT6 RGBA8 and R8 fallback allocations failed.");
@@ -143,6 +145,11 @@ namespace cs::engine
 				entry.srvBindingConfirmed = false;
 				entry.contextMatches = false;
 				entry.prepassContextIdentity = 0;
+				entry.producerSharedData = nullptr;
+				entry.producerViewAmbiguous = false;
+				entry.producerLight = {};
+				entry.producerLightSnapshotValid = false;
+				entry.producerLightSnapshotAmbiguous = false;
 				entry.beginResourceGeneration = entry.resourceGeneration;
 				entry.frameSerial = frameSerial;
 				entry.publicationState.BeginFrame(frameSerial, entry.resourceGeneration, false, entry.rgbaFallback, false);
@@ -216,7 +223,8 @@ namespace cs::engine
 					.bindingConfirmed = entry.publicationState.bindingConfirmed,
 					.srvBindingConfirmed = entry.publicationState.srvBindingConfirmed,
 					.published = entry.publicationState.published,
-					.consumerEligible = false,
+					.consumerEligible = entry.consumerEligible,
+					.viewIdentityConfirmed = entry.producerSharedData && !entry.producerViewAmbiguous,
 					.rgba8Fallback = entry.publicationState.rgba8Fallback,
 					.veto = entry.veto
 				};
@@ -277,11 +285,24 @@ namespace cs::engine
 				if (!entry.contextMatches)
 					entry.veto = PrepassExtraTargetPublication::Veto::kContextMismatch;
 			}
-			// FrameBindingEpoch is thread-local while this legacy dedupe cache is global.
-			// Confirm the actual RTV at publication; resource recreation invalidates the cache.
-			if (epoch == g_bindEpoch)
+			// FrameBindingEpoch is thread-local: include context and resource identity in this thread-local cache.
+			struct BindCache
+			{
+				std::uint64_t epoch = UINT64_MAX;
+				std::uint64_t resourceGeneration = UINT64_MAX;
+				ID3D11DeviceContext* context = nullptr;
+			};
+			thread_local BindCache cache;
+			std::uint64_t resourceGeneration = 0;
+			for (const auto& entry : g_entries) {
+				if (entry.sharedParallax && entry.ready) {
+					resourceGeneration = entry.resourceGeneration;
+					break;
+				}
+			}
+			if (epoch == cache.epoch && resourceGeneration == cache.resourceGeneration && a_context == cache.context)
 				return;
-			g_bindEpoch = epoch;
+			cache = { epoch, resourceGeneration, a_context };
 			// FO4: extra slots follow the engine's six G-buffer targets, left as bound.
 			RebindReadyTargets(a_context, count, [](const Entry& a_entry, ID3D11RenderTargetView*& a_slot) {
 				auto* const rtv = a_entry.texture->rtv.get();
@@ -395,8 +416,8 @@ namespace cs::engine
 				++entry.publicationId;
 				entry.publicationState.publicationId = entry.publicationId;
 				entry.publicationState.MarkPublished();
-				// View identity, unsupported writers and light snapshot association are not established here.
-				entry.consumerEligible = face_transport::CanConsume(entry.published, false, false, false, false, false);
+				// Consumer view/light association is checked at the DFLight bind; no publication alone enables sampling.
+				entry.consumerEligible = false;
 				entry.veto = entry.requestRGBA8 && actual.Format != DXGI_FORMAT_R8G8B8A8_UNORM ?
 				                 PrepassExtraTargetPublication::Veto::kDiagnosticFormatUnavailable :
 				                 PrepassExtraTargetPublication::Veto::kUnverifiedViewAndLightAssociation;
@@ -450,8 +471,108 @@ namespace cs::engine
 
 	void AttachParallaxFaceTransportTarget(ShaderReplacementRegistration& a_registration)
 	{
-		if (a_registration.targetId == ShaderInjectionTarget::kDeferredPrepass)
-			a_registration.bind = &BindTargets;
+		AttachParallaxFaceTransportTargetWithCallback(a_registration, {});
+	}
+
+	void CaptureParallaxFaceTransportProducerView(ID3D11DeviceContext* a_context) noexcept
+	{
+		if (!a_context || a_context != GetImmediateContext())
+			return;
+		ID3D11Buffer* sharedData = nullptr;
+		a_context->PSGetConstantBuffers(render::kSharedDataSlot, 1, &sharedData);
+		for (auto& entry : g_entries) {
+			if (!entry.sharedParallax || !entry.ready || !entry.writing)
+				continue;
+			if (!sharedData) {
+				entry.producerViewAmbiguous = true;
+				entry.producerLightSnapshotAmbiguous = true;
+				continue;
+			}
+			if (!entry.producerSharedData)
+				entry.producerSharedData.copy_from(sharedData);
+			else if (entry.producerSharedData.get() != sharedData)
+				entry.producerViewAmbiguous = true;
+			render::DirectionalLightSnapshot snapshot{};
+			if (!render::GetDirectionalLightSnapshot(sharedData, snapshot) || snapshot.frameSerial != entry.frameSerial) {
+				entry.producerLightSnapshotAmbiguous = true;
+				continue;
+			}
+			if (!entry.producerLightSnapshotValid) {
+				entry.producerLight = snapshot;
+				entry.producerLightSnapshotValid = true;
+			} else if (entry.producerLight.frameSerial != snapshot.frameSerial ||
+					   entry.producerLight.directionWS != snapshot.directionWS) {
+				entry.producerLightSnapshotAmbiguous = true;
+			}
+		}
+		if (sharedData)
+			sharedData->Release();
+	}
+
+	bool ValidateParallaxFaceTransportConsumerView(
+		ID3D11DeviceContext* a_context,
+		std::uint64_t* a_resourceGeneration,
+		std::uint64_t* a_publicationId) noexcept
+	{
+		if (a_resourceGeneration)
+			*a_resourceGeneration = 0;
+		if (a_publicationId)
+			*a_publicationId = 0;
+		if (!a_context || a_context != GetImmediateContext())
+			return false;
+		const auto found = std::ranges::find_if(g_entries, [](const Entry& a_entry) { return a_entry.sharedParallax; });
+		if (found == g_entries.end() || !found->published || !found->publicationState.GenerationMatches() ||
+			found->frameSerial != (GetGraphicsState() ? GetGraphicsState()->frameCount : 0) ||
+			found->target.format != DXGI_FORMAT_R8G8B8A8_UNORM || found->rgbaFallback ||
+			!found->producerSharedData || found->producerViewAmbiguous || !found->producerLightSnapshotValid ||
+			found->producerLightSnapshotAmbiguous || !found->texture ||
+			found->resourceGeneration != found->beginResourceGeneration)
+			return false;
+
+		ID3D11Buffer* consumerSharedData = nullptr;
+		a_context->PSGetConstantBuffers(render::kSharedDataSlot, 1, &consumerSharedData);
+		const bool viewMatches = consumerSharedData && consumerSharedData == found->producerSharedData.get();
+		if (consumerSharedData)
+			consumerSharedData->Release();
+		if (!viewMatches)
+			return false;
+		render::DirectionalLightSnapshot consumerLight{};
+		if (!render::GetDirectionalLightSnapshot(found->producerSharedData.get(), consumerLight) ||
+			consumerLight.frameSerial != found->producerLight.frameSerial ||
+			consumerLight.frameSerial != found->frameSerial ||
+			consumerLight.directionWS != found->producerLight.directionWS)
+			return false;
+
+		ID3D11ShaderResourceView* target = nullptr;
+		a_context->PSGetShaderResources(*found->target.publishSlot, 1, &target);
+		const bool targetMatches = target && target == found->texture->srv.get();
+		if (target)
+			target->Release();
+		if (!targetMatches)
+			return false;
+
+		D3D11_TEXTURE2D_DESC descriptor{};
+		found->texture->resource->GetDesc(&descriptor);
+		if (descriptor.Width != found->texture->desc.Width || descriptor.Height != found->texture->desc.Height ||
+			descriptor.Format != DXGI_FORMAT_R8G8B8A8_UNORM || descriptor.SampleDesc.Count != 1)
+			return false;
+		if (a_resourceGeneration)
+			*a_resourceGeneration = found->resourceGeneration;
+		if (a_publicationId)
+			*a_publicationId = found->publicationId;
+		return true;
+	}
+
+	void AttachParallaxFaceTransportTargetWithCallback(ShaderReplacementRegistration& a_registration, std::function<void(ID3D11DeviceContext*)> a_afterBind)
+	{
+		if (a_registration.targetId != ShaderInjectionTarget::kDeferredPrepass)
+			return;
+		a_registration.bind = [afterBind = std::move(a_afterBind)](ID3D11DeviceContext* a_context) {
+			BindTargets(a_context);
+			CaptureParallaxFaceTransportProducerView(a_context);
+			if (afterBind)
+				afterBind(a_context);
+		};
 	}
 
 	void AttachPrepassExtraTargets(ShaderReplacementRegistration& a_registration)

@@ -94,6 +94,9 @@ namespace cs::render
 	inline constexpr SlotBlock kDynamicCubemapsCompositionSlot{ SlotKind::kTexture, kSlotPixel, true, 39,
 		{ "EnvTexture", "EnvReflectionsTexture", "SharpReflectionsTexture" } };
 	inline constexpr SlotBlock kParallaxShadowSlot{ SlotKind::kTexture, kSlotPixel, true, 66, { "ParallaxShadowTexture" } };
+	inline constexpr SlotBlock kFaceSdfProfileTextureSlot{ SlotKind::kTexture, kSlotPixel, true, 9, { "FaceSdfTexture" } };
+	inline constexpr SlotBlock kFaceSdfProfileConstantsSlot{ SlotKind::kConstantBuffer, kSlotVertex | kSlotPixel, true, 8, { "FaceSdfProfile" } };
+	inline constexpr SlotBlock kFaceSdfConsumerConstantsSlot{ SlotKind::kConstantBuffer, kSlotPixel, true, 8, { "FaceSdfConsumer" } };
 	inline constexpr SlotBlock kLlfStrictSlot{ SlotKind::kConstantBuffer, kSlotPixel, false, 3, { "StrictLightData" } };
 	inline constexpr SlotBlock kLlfRasterSlot{ SlotKind::kConstantBuffer, kSlotPixel, false, 11, { "LightLimitFixDraw" } };
 	inline constexpr SlotBlock kLlfForwardSlot{ SlotKind::kTexture, kSlotPixel, true, 34,
@@ -146,7 +149,8 @@ namespace cs::render
 		&kSubstrateBuffers, &kCanonicalDepthSlot, &kFullscreenDebugTextureSlot, &kForwardDrawSlot,
 		&kLinearClampSamplerSlot, &kSkyDepthSlot, &kCloudShadowsSlot, &kCloudLayerCubeSlot,
 		&kCloudOverlayConstantsSlot, &kDynamicCubemapsSlot, &kDynamicCubemapsCompositionSlot,
-		&kParallaxShadowSlot, &kLlfStrictSlot, &kLlfRasterSlot, &kLlfForwardSlot, &kLlfLocalShadowSlot,
+		&kParallaxShadowSlot, &kFaceSdfProfileTextureSlot, &kFaceSdfProfileConstantsSlot, &kFaceSdfConsumerConstantsSlot,
+		&kLlfStrictSlot, &kLlfRasterSlot, &kLlfForwardSlot, &kLlfLocalShadowSlot,
 		&kSsgiCompositionSlot, &kSsgiSpecularSlot, &kSssConsumerSlot, &kScreenSpaceShadowsMaskSlot,
 		&kTerrainBlendingObjectDepthSlot, &kTerrainBlendingReplaySlot, &kVanillaPbrLiveLODSlot,
 		&kVanillaPbrAuthoredCubeSlot, &kVolumetricShadowsMapSlot, &kVolumetricShadowsLightsSlot,

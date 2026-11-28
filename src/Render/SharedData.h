@@ -21,6 +21,12 @@ namespace cs::engine
 
 namespace cs::render
 {
+	struct DirectionalLightSnapshot
+	{
+		std::array<float, 3> directionWS{};
+		std::uint32_t frameSerial = 0;
+	};
+
 	void InitializeSharedData(ID3D11Device* a_device, ID3D11DeviceContext* a_context);
 	bool IsSharedDataReady() noexcept;
 	// Host-owned linear clamp sampler; null until the substrate is initialized.
@@ -41,6 +47,10 @@ namespace cs::render
 	void BindSharedData(
 		ID3D11DeviceContext* a_context,
 		engine::ShaderStage a_stage) noexcept;
+	// Render-thread snapshot only; fails unless the bound b5 is this host's current buffer.
+	[[nodiscard]] bool GetDirectionalLightSnapshot(
+		ID3D11Buffer* a_boundSharedData,
+		DirectionalLightSnapshot& a_snapshot) noexcept;
 
 	// Render thread; zero outside the scope so shadow and cube draws see none.
 	void SetMainViewMipBias(float a_bias) noexcept;

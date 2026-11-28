@@ -289,14 +289,15 @@ namespace cs::render
 		{
 			const void* sources[]{ &a_data.frame, &a_data.shared, &a_data.feature, &a_data.fo4 };
 			auto& state = GetSubstrateState();
-			for (std::size_t index = a_firstBuffer; index < kSubstrateBufferCount; ++index)
+			for (std::size_t index = a_firstBuffer; index < kSubstrateBufferCount; ++index) {
 				if (FAILED(engine::WriteDiscard(a_context, state.buffers[index].get(), sources[index], kBufferSizes[index])))
 					return false;
-			state.fo4 = a_data.fo4;
-			if (a_firstBuffer == 0) {
-				state.shared = a_data.shared;
-				state.sharedWritten = true;
+				if (index == kSharedDataSlot - kFrameDataSlot) {
+					state.shared = a_data.shared;
+					state.sharedWritten = true;
+				}
 			}
+			state.fo4 = a_data.fo4;
 			return true;
 		}
 
@@ -549,5 +550,22 @@ namespace cs::render
 		case engine::ShaderStage::kCount:
 			break;
 		}
+	}
+
+	bool GetDirectionalLightSnapshot(
+		ID3D11Buffer* a_boundSharedData,
+		DirectionalLightSnapshot& a_snapshot) noexcept
+	{
+		a_snapshot = {};
+		if (!a_boundSharedData || !IsSharedDataReady())
+			return false;
+		const auto& state = GetSubstrateState();
+		const auto& currentBuffer = state.buffers[kSharedDataSlot - kFrameDataSlot];
+		if (!state.sharedWritten || !currentBuffer || currentBuffer.get() != a_boundSharedData)
+			return false;
+		const auto& direction = state.shared.DirLightDirection;
+		a_snapshot.directionWS = { direction.x, direction.y, direction.z };
+		a_snapshot.frameSerial = state.shared.FrameCountAlwaysActive;
+		return std::ranges::all_of(a_snapshot.directionWS, [](float a_value) { return std::isfinite(a_value); });
 	}
 }

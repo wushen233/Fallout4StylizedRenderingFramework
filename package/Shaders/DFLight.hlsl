@@ -8,8 +8,17 @@
 #if defined(DIRECTIONAL) && !defined(SHADOW_ONLY)
 #	include "FO4/WorldShadowConsumer.hlsli"
 #endif
+#if defined(DIRECTIONAL) && !defined(SHADOW_ONLY) && (defined(EXTENDED_MATERIALS) || defined(FACE_SDF))
+#	include "FO4/ParallaxFaceTransport.hlsli"
+#endif
 #if defined(DIRECTIONAL) && defined(EXTENDED_MATERIALS) && !defined(SHADOW_ONLY)
 #	include "FO4/ExtendedMaterialsConsumer.hlsli"
+#endif
+#if defined(DIRECTIONAL) && defined(FACE_SDF) && !defined(SHADOW_ONLY)
+#	include "FO4/FaceSDF/LightConsumer.hlsli"
+#	define FO4_FACE_SDF_DIRECT_FACTOR(POSITION, LIGHT) FaceSdfDirectDiffuseFactor(POSITION, LIGHT, mul((float3x3)WorldToView, SharedData::DirLightDirection.xyz))
+#else
+#	define FO4_FACE_SDF_DIRECT_FACTOR(POSITION, LIGHT) 1.0
 #endif
 #include "FO4/AmbientConsumer.hlsli"
 #include "FO4/SoftSunShadow.hlsli"
@@ -724,7 +733,7 @@ PS_OUTPUT main(PS_INPUT input)
 	float ambientTerm = fresEdge * ambientFres * NdotL_clamped * roughness01;
 
 	float3 finalDiffuse = LightColor_row0.xyz * ambientTerm;
-	finalDiffuse += LightColor_row0.xyz * brdfShadowMix;
+	finalDiffuse += LightColor_row0.xyz * brdfShadowMix * FO4_FACE_SDF_DIRECT_FACTOR(input.position.xy, LightVector.xyz);
 
 	float backfaceWrap = saturate(-NdotL_raw);
 	finalDiffuse += LightColor_row0.xyz * (albedoPremult * backfaceWrap);
@@ -2576,7 +2585,7 @@ float2 goboUV = float2(omniUV.x,
 		float fresEdge = saturate(dot(viewDirNeg, -LightVector.xyz));
 		float ambientTerm = ambientFres * fresEdge * NdotL_clamped * roughness01;
 
-		float3 finalDiffuse = LightColor_row0.xyz * brdfShadowMix;
+		float3 finalDiffuse = LightColor_row0.xyz * brdfShadowMix * FO4_FACE_SDF_DIRECT_FACTOR(input.position.xy, LightVector.xyz);
 		finalDiffuse += LightColor_row0.xyz * ambientTerm;
 
 		float backfaceWrap = saturate(-NdotL_raw);
@@ -3447,7 +3456,7 @@ static const float FO4_DIRECTIONAL_SPECULAR_SCALE = 3.141593;
 			}
 
 #	ifdef IGNOREROUGHNESS
-			float3 finalDiffuse = LightColor_row0.xyz * brdfShadowMix;
+			float3 finalDiffuse = LightColor_row0.xyz * brdfShadowMix * FO4_FACE_SDF_DIRECT_FACTOR(input.position.xy, LightVector.xyz);
 #	else
 #		ifdef FO4_DS2_REUSE_AMBIENT_VIEW_LOG
 	float ambientFres = exp2(ambientFresLog * 0.01);
@@ -3465,11 +3474,11 @@ static const float FO4_DIRECTIONAL_SPECULAR_SCALE = 3.141593;
 #		endif
 
 #		ifdef FO4_DS2_REASSOC_ORDER
-	float3 finalDiffuse = LightColor_row0.xyz * brdfShadowMix;
+	float3 finalDiffuse = LightColor_row0.xyz * brdfShadowMix * FO4_FACE_SDF_DIRECT_FACTOR(input.position.xy, LightVector.xyz);
 	finalDiffuse += LightColor_row0.xyz * ambientTerm;
 #		else
 	float3 finalDiffuse = LightColor_row0.xyz * ambientTerm;
-	finalDiffuse += LightColor_row0.xyz * brdfShadowMix;
+	finalDiffuse += LightColor_row0.xyz * brdfShadowMix * FO4_FACE_SDF_DIRECT_FACTOR(input.position.xy, LightVector.xyz);
 #		endif
 #	endif
 
@@ -4470,7 +4479,7 @@ static const float FO4_DIRECTIONAL_SPECULAR_SCALE = 3.141593;
 			}
 
 #	ifndef FO4_DS3_LATE_DIFFUSE
-			float3 finalDiffuse = LightColor_row0.xyz * brdfShadowMix;
+			float3 finalDiffuse = LightColor_row0.xyz * brdfShadowMix * FO4_FACE_SDF_DIRECT_FACTOR(input.position.xy, LightVector.xyz);
 #	endif
 
 #	ifndef IGNOREROUGHNESS
@@ -4489,7 +4498,7 @@ static const float FO4_DIRECTIONAL_SPECULAR_SCALE = 3.141593;
 #		endif
 
 #		ifdef FO4_DS3_LATE_DIFFUSE
-			float3 finalDiffuse = LightColor_row0.xyz * brdfShadowMix;
+			float3 finalDiffuse = LightColor_row0.xyz * brdfShadowMix * FO4_FACE_SDF_DIRECT_FACTOR(input.position.xy, LightVector.xyz);
 			finalDiffuse += LightColor_row0.xyz * ambientTerm;
 #		else
 		finalDiffuse += LightColor_row0.xyz * ambientTerm;
@@ -6275,7 +6284,7 @@ static const float FO4_SPECULAR_SCALE = 3.1415927;
 			float NdotL_clamped = saturate(NdotL_raw);
 #	endif
 
-			float3 finalDiffuse = FO4LocalLightColor(LightColor_row0.xyz) * brdfShadowMix;
+			float3 finalDiffuse = FO4LocalLightColor(LightColor_row0.xyz) * brdfShadowMix * FO4_FACE_SDF_DIRECT_FACTOR(input.position.xy, LightVector.xyz);
 			FO4_SOFT_LOBES_DECLARE(softDiffuse);
 
 #	if !defined(IGNOREROUGHNESS) && !defined(IGNORERIM)

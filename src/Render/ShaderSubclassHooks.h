@@ -81,6 +81,12 @@ namespace cs::engine
 		std::optional<bool> _inObjectLOD;
 	};
 
+	// Present only inside the immediate SetupGeometry scope that also encloses its draw flush.
+	// CommandBuffer bake/replay does not expose this context at replay time.
+	[[nodiscard]] RE::BSRenderPass* GetCurrentImmediatePrepassPass() noexcept;
+	using PrepassImmediateDrawCallback = void (*)(RE::BSRenderPass*, void*, bool) noexcept;
+	[[nodiscard]] bool RegisterPrepassImmediateDrawCallback(Feature& a_owner, PrepassImmediateDrawCallback a_callback, void* a_context) noexcept;
+
 	using PrepassDrawClassifier = bool (*)(PrepassDrawContext& a_draw) noexcept;
 
 	struct PrepassLaneStats

@@ -5,10 +5,6 @@
 
 namespace ExtendedMaterials
 {
-	// FO4: the prepass resolves upstream's directional parallax shadow per pixel.
-	// RGBA8 diagnostic resources retain the existing t66 name/register and R channel.
-	Texture2D<float4> ParallaxShadowTexture : register(t66);
-
 	float GetParallaxShadow(float2 pixelPosition)
 	{
 		[branch] if (!SharedData::extendedMaterialSettings.EnableShadows) return 1.0;

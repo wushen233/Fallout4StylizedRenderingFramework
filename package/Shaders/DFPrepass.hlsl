@@ -135,6 +135,9 @@
 #	endif
 
 #	include "FO4/FO4ShaderData.hlsli"
+#	if defined(FACE_SDF)
+#		include "FO4/FaceSDF/Prepass.hlsli"
+#	endif
 
 // FO4: Skyrim mesh exclusions as prepass variants; host rejects object LOD.
 #	if defined(TERRAIN_VARIATION) && TEXTURE && !LANDSCAPE && !(LOD_LANDSCAPE || SKIN_TINT || HAIR || EYE || TREE_ANIM || DISMEMBERMENT_MEATCUFF)
@@ -539,6 +542,11 @@ struct PS_INPUT
 	float3 normal: TEXCOORD2;
 	float4 curr_pos_u: TEXCOORD3;
 	float4 prev_pos_v: TEXCOORD4;
+#		if defined(FACE_SDF) && FACE && SKINNED && !BLEND && !TESSELLATE_DISP_HEIGHT && !defined(FO4_TERRAIN_BLENDING)
+	float3 faceSdfForwardView: TEXCOORD10;
+	float3 faceSdfRightView: TEXCOORD11;
+	float3 faceSdfUpView: TEXCOORD12;
+#		endif
 #		if VC
 	float4 vertexColor: COLOR0;
 #		endif
@@ -591,7 +599,7 @@ struct PS_OUTPUT
 	float2 motionVec: SV_Target5;
 #		endif
 #	endif
-#	if defined(EXTENDED_MATERIALS) || defined(FACE_TRANSPORT_RGBA8)
+#	if defined(EXTENDED_MATERIALS) || defined(FACE_TRANSPORT_RGBA8) || defined(FACE_SDF)
 	// FO4: upstream shades parallax shadows forward; DFLight reads them from here.
 	float4 parallaxShadow: SV_Target6;
 #	endif
@@ -629,7 +637,7 @@ struct PS_OUTPUT
 #	else
 	PS_OUTPUT output;
 #	endif
-#	if defined(EXTENDED_MATERIALS) || defined(FACE_TRANSPORT_RGBA8)
+#	if defined(EXTENDED_MATERIALS) || defined(FACE_TRANSPORT_RGBA8) || defined(FACE_SDF)
 		float parallaxShadow = 1.0;
 #	endif
 #	if defined(TERRAIN_VARIATION_LOD) || defined(EMAT)
@@ -1690,16 +1698,33 @@ struct PS_OUTPUT
 		output.motionVec = (currNDC - prevNDC) * float2(-0.5, 0.5);
 #		endif
 #	endif
-#	if defined(EXTENDED_MATERIALS) || defined(FACE_TRANSPORT_RGBA8)
+#	if defined(EXTENDED_MATERIALS) || defined(FACE_TRANSPORT_RGBA8) || defined(FACE_SDF)
 	// Every draw writes, so surfaces drawn over parallax never keep its shadow.
 #		if BLEND
 		float4 transportPayload = float4(parallaxShadow, 0, 0, output.albedo.w);
 #		else
 		float4 transportPayload = float4(parallaxShadow, 0, 0, 1);
 #		endif
-#		if defined(FACE_TRANSPORT_RGBA8) && FACE && !BLEND && !LANDSCAPE && !TESSELLATE_DISP_HEIGHT
+#		if defined(FACE_TRANSPORT_RGBA8) && !defined(FACE_SDF) && FACE && !BLEND && !LANDSCAPE && !TESSELLATE_DISP_HEIGHT
 		// Synthetic diagnostic payload only; this is not SDF data or material-role proof.
 		transportPayload.gb = float2(0.5, 1.0);
+#		endif
+#		if defined(FACE_SDF) && FACE && SKINNED && !BLEND && !LANDSCAPE && !TESSELLATE_DISP_HEIGHT && !defined(FO4_TERRAIN_BLENDING)
+		const float3 sunDirectionView = float3(
+			dot(WorldToView_row0.xyz, SharedData::DirLightDirection.xyz),
+			dot(WorldToView_row1.xyz, SharedData::DirLightDirection.xyz),
+			dot(WorldToView_row2.xyz, SharedData::DirLightDirection.xyz));
+		const float sdfFactor = EvaluateFaceSdf(
+			float2(input.curr_pos_u.w, input.prev_pos_v.w),
+			input.faceSdfForwardView,
+			input.faceSdfRightView,
+			input.faceSdfUpView,
+			sunDirectionView);
+		if (FaceSdfParameters.x >= 0.5 && isfinite(sdfFactor))
+		{
+			transportPayload.g = saturate(sdfFactor);
+			transportPayload.b = 1.0;
+		}
 #		endif
 		output.parallaxShadow = transportPayload;
 #	endif
@@ -1727,7 +1752,7 @@ struct PS_OUTPUT
 #		if PREPASS_MOTION_VECTOR
 			output.motionVec.w = terrainBlendFactor;
 #		endif
-#		if defined(EXTENDED_MATERIALS) || defined(FACE_TRANSPORT_RGBA8)
+#		if defined(EXTENDED_MATERIALS) || defined(FACE_TRANSPORT_RGBA8) || defined(FACE_SDF)
 			output.parallaxShadow.w = terrainBlendFactor;
 #		endif
 #		if defined(SUBSURFACE_SCATTERING)
@@ -1751,6 +1776,10 @@ struct PS_OUTPUT
 #	else
 #		define SPLINE_PREVIOUS_POSITION position
 #		define TREE_PREVIOUS_DISTANCE treeDistance
+#	endif
+
+#	if defined(FACE_SDF)
+#		include "FO4/FaceSDF/Prepass.hlsli"
 #	endif
 
 cbuffer PerFrame_CB12 : register(b12)
@@ -2217,6 +2246,11 @@ struct VertexOutput
 	float3 tangentRow2: TEXCOORD2;
 	float4 currentPositionAndU: TEXCOORD3;
 	float4 previousPositionAndV: TEXCOORD4;
+#		if defined(FACE_SDF) && FACE && SKINNED && !BLEND && !TESSELLATE_DISP_HEIGHT && !defined(FO4_TERRAIN_BLENDING)
+	float3 faceSdfForwardView: TEXCOORD10;
+	float3 faceSdfRightView: TEXCOORD11;
+	float3 faceSdfUpView: TEXCOORD12;
+#		endif
 #		if VC
 	float4 color: COLOR0;
 #		endif
@@ -2929,6 +2963,14 @@ VertexOutput main(VertexInput input)
 		worldNormal);
 	output.tangentRow2 = ProjectBasis(WorldToView_row2.xyz, worldTangent, worldBinormal,
 		worldNormal);
+#		if defined(FACE_SDF) && FACE && !BLEND && !TESSELLATE_DISP_HEIGHT && !defined(FO4_TERRAIN_BLENDING)
+		float3 faceForwardWorld = SkinDirection(FaceSdfForward.xyz, skin);
+		float3 faceRightWorld = SkinDirection(FaceSdfRight.xyz, skin);
+		float3 faceUpWorld = SkinDirection(FaceSdfUp.xyz, skin);
+		output.faceSdfForwardView = ProjectRows(WorldToView_row0.xyz, WorldToView_row1.xyz, WorldToView_row2.xyz, faceForwardWorld);
+		output.faceSdfRightView = ProjectRows(WorldToView_row0.xyz, WorldToView_row1.xyz, WorldToView_row2.xyz, faceRightWorld);
+		output.faceSdfUpView = ProjectRows(WorldToView_row0.xyz, WorldToView_row1.xyz, WorldToView_row2.xyz, faceUpWorld);
+#		endif
 #		else
 	float3 viewRow0 = ConcatenateRow(WorldToView_row0, column0, column1, column2);
 	float3 viewRow1 = ConcatenateRow(WorldToView_row1, column0, column1, column2);
