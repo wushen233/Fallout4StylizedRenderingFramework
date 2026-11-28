@@ -705,10 +705,15 @@ namespace cs
 	bool ShaderInjectionFeature::ValidateShaderInjections(std::string& a_error)
 	{
 		_injectionsOperational.Set(InjectionGate::kValidated, false);
+		const bool requiresRoutes = RequiresShaderInjectionRoutes();
 		const bool valid = [&] {
 			if (!_registrationsReady.load(std::memory_order_acquire)) {
 				a_error = GetRegistrationFailureMessage();
 				return false;
+			}
+			if (!requiresRoutes) {
+				a_error.clear();
+				return true;
 			}
 			return ValidateInjectionPrerequisites(a_error) &&
 			       engine::ValidateShaderInjectionRoutes(GetName(), a_error) &&
@@ -718,7 +723,7 @@ namespace cs
 			std::scoped_lock lock(_injectionErrorMutex);
 			_injectionError = valid ? std::string{} : a_error;
 		}
-		_injectionsOperational.Set(InjectionGate::kValidated, valid);
+		_injectionsOperational.Set(InjectionGate::kValidated, valid && requiresRoutes);
 		return valid;
 	}
 

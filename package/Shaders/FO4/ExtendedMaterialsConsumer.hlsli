@@ -6,7 +6,8 @@
 namespace ExtendedMaterials
 {
 	// FO4: the prepass resolves upstream's directional parallax shadow per pixel.
-	Texture2D<float> ParallaxShadowTexture : register(t66);
+	// RGBA8 diagnostic resources retain the existing t66 name/register and R channel.
+	Texture2D<float4> ParallaxShadowTexture : register(t66);
 
 	float GetParallaxShadow(float2 pixelPosition)
 	{
@@ -16,7 +17,7 @@ namespace ExtendedMaterials
 		// An absent SRV leaves the sun untouched.
 		if (any(dimensions == 0))
 			return 1.0;
-		return ParallaxShadowTexture.Load(int3(min(uint2(pixelPosition), dimensions - 1), 0));
+		return ParallaxShadowTexture.Load(int3(min(uint2(pixelPosition), dimensions - 1), 0)).r;
 	}
 }
 #endif

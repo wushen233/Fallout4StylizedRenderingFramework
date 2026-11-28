@@ -390,6 +390,15 @@ target("AgilityBootstrapTests", function()
         }
     })
 end)
+
+target("FaceTransportPublicationContractTests", function()
+    set_kind("binary")
+    set_default(false)
+    set_group("unit")
+    add_files("tests/FaceTransportPublicationContractTests.cpp")
+    add_includedirs("src")
+    add_tests("FaceTransportPublicationContract")
+end)
 -- Each test binary carries its own d3dcompiler_47.dll (exe-dir lookup).
 local function stage_shader_compiler(target)
     local source = target:values("fo4cs.identity_compiler")

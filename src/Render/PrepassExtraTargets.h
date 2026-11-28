@@ -35,6 +35,43 @@ namespace cs::engine
 
 	// Load/OnPostPostLoad only; nullopt if the slot is taken or hooks failed.
 	[[nodiscard]] std::optional<PrepassExtraTargetId> RegisterPrepassExtraTarget(Feature& a_owner, PrepassExtraTarget a_target);
+	// RT6 is shared only by the existing Parallax producer and the bounded Face transport diagnostic.
+	struct PrepassExtraTargetPublication
+	{
+		enum class Veto : std::uint8_t
+		{
+			kDiagnosticDisabled,
+			kResourceUnavailable,
+			kBindingNotAttempted,
+			kBindingNotConfirmed,
+			kContextMismatch,
+			kGenerationMismatch,
+			kPublicationFailed,
+			kDiagnosticFormatUnavailable,
+			kUnverifiedViewAndLightAssociation
+		};
+
+		std::uint64_t resourceGeneration = 0;
+		std::uint64_t publishedGeneration = 0;
+		std::uint64_t publicationId = 0;
+		std::uint32_t frameSerial = 0;
+		DXGI_FORMAT requestedFormat = DXGI_FORMAT_UNKNOWN;
+		DXGI_FORMAT actualFormat = DXGI_FORMAT_UNKNOWN;
+		bool resourceReady = false;
+		bool bindingAttempted = false;
+		bool bindingConfirmed = false;
+		bool srvBindingConfirmed = false;
+		bool published = false;
+		bool consumerEligible = false;
+		bool rgba8Fallback = false;
+		Veto veto = Veto::kDiagnosticDisabled;
+	};
+
+	using PrepassExtraTargetPublicationCallback = std::function<void(const PrepassExtraTargetPublication&)>;
+	[[nodiscard]] std::optional<PrepassExtraTargetId> RegisterParallaxFaceTransportTarget(
+		Feature& a_owner, std::function<bool()> a_active, bool a_requestRGBA8,
+		PrepassExtraTargetPublicationCallback a_publication = {});
+	void AttachParallaxFaceTransportTarget(ShaderReplacementRegistration& a_registration);
 	// Plugs the target bind into a feature's kDeferredPrepass registration.
 	void AttachPrepassExtraTargets(ShaderReplacementRegistration& a_registration);
 	// The target's SRV for a compute consumer; null unless written this frame.
