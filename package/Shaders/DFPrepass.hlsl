@@ -1710,10 +1710,7 @@ struct PS_OUTPUT
 		transportPayload.gb = float2(0.5, 1.0);
 #		endif
 #		if defined(FACE_SDF) && FACE && SKINNED && !BLEND && !LANDSCAPE && !TESSELLATE_DISP_HEIGHT && !defined(FO4_TERRAIN_BLENDING)
-		const float3 sunDirectionView = float3(
-			dot(WorldToView_row0.xyz, SharedData::DirLightDirection.xyz),
-			dot(WorldToView_row1.xyz, SharedData::DirLightDirection.xyz),
-			dot(WorldToView_row2.xyz, SharedData::DirLightDirection.xyz));
+		const float3 sunDirectionView = mul((float3x3)WorldToView, SharedData::DirLightDirection.xyz);
 		const float sdfFactor = EvaluateFaceSdf(
 			float2(input.curr_pos_u.w, input.prev_pos_v.w),
 			input.faceSdfForwardView,
