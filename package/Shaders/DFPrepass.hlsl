@@ -1955,9 +1955,14 @@ cbuffer PerCall_CB2 : register(b2)
 #		endif
 };
 
-// A cut call rebinds the first two world rows as the cut plane's point and axis.
-#		define CUT_POINT DismemberHitLoc
-#		define CUT_AXIS DismemberHitDir_row0
+// A cut call rebinds the first two transform rows as the cut plane's point and axis.
+#		if SKINNED
+#			define CUT_POINT DismemberHitLoc
+#			define CUT_AXIS DismemberHitDir_row0
+#		else
+#			define CUT_POINT World_row0
+#			define CUT_AXIS World_row1
+#		endif
 #	endif
 
 #	if SKINNED
